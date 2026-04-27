@@ -1,16 +1,12 @@
 package fr.clickauto.app
 
 import groovy.transform.CompileStatic
-
 import javax.swing.JFrame
 import javax.swing.SwingUtilities
 import javax.swing.WindowConstants
 
 @CompileStatic
 final class MainApp {
-    private MainApp() {
-    }
-
     static void main(String[] args) {
         SwingUtilities.invokeLater(MainApp.&createAndShowWindow)
     }
@@ -23,4 +19,3 @@ final class MainApp {
         frame.setVisible(true)
     }
 }
-

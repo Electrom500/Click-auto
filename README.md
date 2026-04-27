@@ -5,7 +5,10 @@ Application desktop Windows-first pour automatiser des sequences de clics et de 
 ## Etat actuel
 
 Le projet est initialise techniquement avec Gradle et Groovy.
-La premiere version executable ouvre une fenetre vide (base UI).
+- Point d'entrée exécutable en Groovy avec `@CompileStatic`.
+- Fenetre Swing vide de base.
+- Modèles métier créés : `Action`, `ClickAction`, `KeyAction`, `Sequence`.
+- Tous les tests de compilation passent.
 
 ## Installation (environnement entreprise)
 
@@ -30,7 +33,7 @@ A executer une fois apres installation de Gradle :
 gradle wrapper
 ```
 
-Puis, utiliser uniquement le wrapper :
+### Construction et execution
 
 ```powershell
 .\gradlew.bat clean build
@@ -40,27 +43,45 @@ Puis, utiliser uniquement le wrapper :
 ## Fonctionnalites principales developpees
 
 - Initialisation du projet Gradle (`application` + `groovy`).
-- Point d'entree Groovy: `fr.clickauto.app.MainApp`.
-- Ouverture d'une fenetre desktop vide (Swing).
-- Compilation statique activee via `@CompileStatic` sur l'entree applicative.
+- Point d'entree Groovy: `fr.clickauto.app.MainApp` avec `@CompileStatic`.
+- Ouverture d'une fenetre Swing vide (base UI).
+- Modèles métier complets:
+  - `Action` : interface de base pour toute action.
+  - `ClickAction` : représente un clic souris (LEFT, RIGHT, MIDDLE).
+  - `KeyAction` : représente une touche clavier avec durée de maintien.
+  - `ClickType` : énumération des types de clics.
+  - `Sequence` : conteneur de séquence d'actions avec cycles et délais.
 - Structure de base prete pour separer UI, moteur d'execution et persistance.
 
 ## Bugs connus
 
-- Aucun bug fonctionnel liste a ce stade (MVP non demarre).
+- Aucun bug fonctionnel liste a ce stade (MVP architecture en place).
 - Le projet ne peut pas etre lance sans Java et Gradle correctement installes dans le PATH.
 
 ## Architecture du projet (actuelle)
 
+```
+src/main/groovy/
+├── fr/clickauto/app/
+│   └── MainApp.groovy          # Point d'entrée applicatif
+└── fr/clickauto/model/
+    ├── Action.groovy            # Interface de base
+    ├── ClickAction.groovy       # Action clic souris
+    ├── KeyAction.groovy         # Action touche clavier
+    ├── ClickType.groovy         # Énumération des types de clics
+    └── Sequence.groovy          # Conteneur de séquence
+```
+
 - `build.gradle`: configuration build et runtime.
 - `settings.gradle`: nom du projet Gradle.
-- `src/main/groovy/fr/clickauto/app/MainApp.groovy`: point d'entree UI.
 - `docs/TECHNIQUE.md`: decisions techniques et historique des choix.
 - `Plannification.md`: vision produit, perimetre, evolutions.
 
 ## Prochaines etapes conseillees
 
-1. Ajouter un squelette UI (zones: sequence, proprietes, commandes).
-2. Creer le modele de sequence (`Action`, `ClickAction`, `KeyAction`).
-3. Ajouter un premier moteur d'execution minimal avec `start/stop`.
+1. Creer le service d'execution (`SequenceExecutor`).
+2. Etendre l'UI desktop avec composants Swing (zones: sequence, proprietes, commandes).
+3. Ajouter un premier moteur de clic souris minimal avec `start/stop/pause`.
 4. Introduire la sauvegarde JSON d'un profil.
+5. Ajouter des tests Groovy Spock sur la logique de sequence.
+

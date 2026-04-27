@@ -255,18 +255,32 @@ L'application sera considérée comme réussie si elle permet de :
 
 ## 15. Suivi d'implémentation technique
 
-### État courant
-- Initialisation Gradle opérationnelle avec exécution locale validée.
-- Migration du point d'entrée applicatif en 100% Groovy.
-- UI de base exécutable (fenêtre Swing vide).
+### État courant (2026-04-27)
+
+- ✅ Initialisation Gradle opérationnelle.
+- ✅ Migration complète en 100% Groovy (`@CompileStatic` activé).
+- ✅ UI de base exécutable (fenêtre Swing vide).
+- ✅ Modèles métier créés et testés à la compilation :
+  - `Action` : interface générique.
+  - `ClickAction` : clic souris (type, position, délai, activable).
+  - `KeyAction` : touche clavier (code, durée, délai, activable).
+  - `ClickType` : énumération LEFT/RIGHT/MIDDLE.
+  - `Sequence` : conteneur d'actions (cycles, durée totale, délai initial, gestion d'ordre).
+- ✅ Build avec Gradle en 100% succès.
 
 ### Décisions techniques actées
+
 - Plugin `groovy` activé dans `build.gradle`.
 - Cible JVM maintenue en Java 21 (toolchain Gradle) pour stabilité.
-- Utilisation de `@CompileStatic` sur l'entrypoint et, par défaut, sur les futures classes coeur.
+- Utilisation de `@CompileStatic` sur domaine + entrypoint.
+- Swing choisi pour MVP (JavaFX ajourné jusqu'à évolution UX).
 
-### Prochain lot technique
-- Créer le squelette UI MVP (barre de commandes, zone séquence, panneau propriétés).
-- Démarrer le modèle métier (`Action`, `ClickAction`, `KeyAction`, `Sequence`) en Groovy.
-- Ajouter des tests Groovy (Spock) sur la logique de séquence.
+### Prochain lot technique (sprint 2)
+
+1. Créer `SequenceExecutor` pour exécuter les séquences.
+2. Implémenter les hooks de clic/touche avec `java.awt.Robot`.
+3. Étendre l'UI Swing (éditeur de séquence, liste d'actions, propriétés).
+4. Ajouter tests Spock Groovy sur la logique métier.
+5. Implémenter la persistance JSON (save/load profils).
+
 

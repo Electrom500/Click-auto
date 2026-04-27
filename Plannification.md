@@ -259,7 +259,7 @@ L'application sera considérée comme réussie si elle permet de :
 
 - ✅ Initialisation Gradle opérationnelle.
 - ✅ Migration complète en 100% Groovy (`@CompileStatic` activé).
-- ✅ UI de base exécutable (fenêtre Swing vide).
+- ✅ UI principale en JavaFX (base exécutable avec 4 zones).
 - ✅ Modèles métier créés et testés à la compilation :
   - `Action` : interface générique.
   - `ClickAction` : clic souris (type, position, délai, activable).
@@ -271,15 +271,16 @@ L'application sera considérée comme réussie si elle permet de :
 ### Décisions techniques actées
 
 - Plugin `groovy` activé dans `build.gradle`.
+- Dépendances JavaFX ajoutées pour Windows via Gradle.
 - Cible JVM maintenue en Java 21 (toolchain Gradle) pour stabilité.
 - Utilisation de `@CompileStatic` sur domaine + entrypoint.
-- Swing choisi pour MVP (JavaFX ajourné jusqu'à évolution UX).
+- JavaFX choisi pour la page principale et la base d'interface.
 
 ### Prochain lot technique (sprint 2)
 
 1. Créer `SequenceExecutor` pour exécuter les séquences.
 2. Implémenter les hooks de clic/touche avec `java.awt.Robot`.
-3. Étendre l'UI Swing (éditeur de séquence, liste d'actions, propriétés).
+3. Étendre l'UI JavaFX (éditeur de séquence, liste d'actions, propriétés).
 4. Ajouter tests Spock Groovy sur la logique métier.
 5. Implémenter la persistance JSON (save/load profils).
 

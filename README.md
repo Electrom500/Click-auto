@@ -4,9 +4,9 @@ Application desktop Windows-first pour automatiser des sequences de clics et de 
 
 ## Etat actuel
 
-Le projet est initialise techniquement avec Gradle et Groovy.
+Le projet est initialise techniquement avec Gradle, Groovy et JavaFX.
 - Point d'entrée exécutable en Groovy avec `@CompileStatic`.
-- Fenetre Swing vide de base.
+- Page principale JavaFX (base UI en 4 zones).
 - Modèles métier créés : `Action`, `ClickAction`, `KeyAction`, `Sequence`.
 - Tous les tests de compilation passent.
 
@@ -17,6 +17,7 @@ Le projet est initialise techniquement avec Gradle et Groovy.
 - JDK 21 recommande (LTS).
 - Java 26 possible en local, mais la cible de build est Java 21 via toolchain Gradle.
 - Gradle installe localement (une fois) pour generer le wrapper.
+- JavaFX est fourni via les dépendances Gradle (profil Windows).
 
 ### Verification des outils
 
@@ -44,7 +45,12 @@ gradle wrapper
 
 - Initialisation du projet Gradle (`application` + `groovy`).
 - Point d'entree Groovy: `fr.clickauto.app.MainApp` avec `@CompileStatic`.
-- Ouverture d'une fenetre Swing vide (base UI).
+- Fenetre principale JavaFX exécutable.
+- Vue principale découpee en 4 zones:
+  - barre d'actions en haut,
+  - liste des actions au centre,
+  - panneau de propriétés à droite,
+  - barre d'état en bas.
 - Modèles métier complets:
   - `Action` : interface de base pour toute action.
   - `ClickAction` : représente un clic souris (LEFT, RIGHT, MIDDLE).
@@ -63,7 +69,8 @@ gradle wrapper
 ```
 src/main/groovy/
 ├── fr/clickauto/app/
-│   └── MainApp.groovy          # Point d'entrée applicatif
+│   ├── MainApp.groovy          # Point d'entrée JavaFX
+│   └── ui/MainView.groovy      # Construction de l'écran principal JavaFX
 └── fr/clickauto/model/
     ├── Action.groovy            # Interface de base
     ├── ClickAction.groovy       # Action clic souris
@@ -80,7 +87,7 @@ src/main/groovy/
 ## Prochaines etapes conseillees
 
 1. Creer le service d'execution (`SequenceExecutor`).
-2. Etendre l'UI desktop avec composants Swing (zones: sequence, proprietes, commandes).
+2. Rendre la page JavaFX interactive (édition de séquence, sélection, duplication).
 3. Ajouter un premier moteur de clic souris minimal avec `start/stop/pause`.
 4. Introduire la sauvegarde JSON d'un profil.
 5. Ajouter des tests Groovy Spock sur la logique de sequence.

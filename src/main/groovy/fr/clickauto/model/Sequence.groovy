@@ -1,3 +1,5 @@
+package fr.clickauto.model
+
 import groovy.transform.CompileStatic
 import groovy.transform.ToString
 import fr.clickauto.model.Action
@@ -97,4 +99,3 @@ final class Sequence {
                 .orElse(0)
     }
 }
-

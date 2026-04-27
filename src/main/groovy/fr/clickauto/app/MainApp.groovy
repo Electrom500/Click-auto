@@ -1,21 +1,23 @@
 package fr.clickauto.app
 
+import fr.clickauto.app.ui.MainView
 import groovy.transform.CompileStatic
-import javax.swing.JFrame
-import javax.swing.SwingUtilities
-import javax.swing.WindowConstants
+import javafx.application.Application
+import javafx.stage.Stage
 
 @CompileStatic
-final class MainApp {
+final class MainApp extends Application {
     static void main(String[] args) {
-        SwingUtilities.invokeLater(MainApp.&createAndShowWindow)
+        launch(args)
     }
 
-    private static void createAndShowWindow() {
-        JFrame frame = new JFrame('Click-auto')
-        frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE)
-        frame.setSize(1000, 650)
-        frame.setLocationRelativeTo(null)
-        frame.setVisible(true)
+    @Override
+    void start(Stage primaryStage) {
+        MainView mainView = new MainView()
+        primaryStage.setTitle('Click-auto')
+        primaryStage.setScene(mainView.createScene())
+        primaryStage.setMinWidth(1200)
+        primaryStage.setMinHeight(700)
+        primaryStage.show()
     }
 }

@@ -13,7 +13,7 @@ Ce document complete `Plannification.md` avec une vue technique plus detaillee:
 
 - Langage: Groovy (application) sur JVM
 - Build: Gradle (Groovy DSL)
-- UI de depart: Swing
+- UI de depart: JavaFX
 - Version cible Java: 21 (LTS) via toolchain Gradle
 
 ## 3. Choix techniques (journal)
@@ -67,12 +67,21 @@ Ce document complete `Plannification.md` avec une vue technique plus detaillee:
 - Impact: JavaFX peut etre adopte plus tard si besoin UX plus avancee; pour MVP, Swing suffit largement.
 - Note: migration vers JavaFX reste simple a faire une fois la logique stabilisee.
 
+## Decision D-007 - Passage de la page principale en JavaFX
+
+- Date: 2026-04-27
+- Contexte: besoin d'une UI plus moderne et structurée pour la page principale.
+- Choix: construire la fenêtre principale avec JavaFX en Groovy statique, sans FXML pour garder la base légère.
+- Pourquoi: page principale plus lisible, séparation claire des zones (actions, propriétés, statut).
+- Impact: dépendances JavaFX ajoutées au build Gradle avec classifier Windows; base prête pour enrichir l'écran sans toucher au modèle métier.
+
 ## 4. Structure de code actuelle
 
 ```
 src/main/groovy/
 ├── fr/clickauto/app/
-│   └── MainApp.groovy              # Point d'entrée, fenêtre Swing vide
+│   ├── MainApp.groovy              # Point d'entrée JavaFX
+│   └── ui/MainView.groovy          # Écran principal JavaFX (4 zones)
 └── fr/clickauto/model/
     ├── Action.groovy               # Interface de base pour les actions
     ├── ClickAction.groovy          # Clic souris (avec type, position, délai)
@@ -83,13 +92,13 @@ src/main/groovy/
 
 ### Annotations Groovy utilisées
 
-- `@CompileStatic` : activée sur toutes les classes du modèle et l'entrypoint.
+- `@CompileStatic` : activée sur toutes les classes du modèle, l'entrypoint et la vue principale.
 - `@ToString` : génère les `toString()` avec champs selectionnés pour debug.
 
 ### Notes sur le choix de package
 
 - `model/` : domaine purement métier, sans dépendances UI/Swing.
-- `app/` : couche présentation (MainApp, contrôleurs Swing).
+- `app/` : couche présentation (MainApp, vues JavaFX).
 - `service/` ou `engine/` : viendra plus tard pour l'exécution.
 
 ## 5. Regles d'evolution technique
@@ -107,7 +116,7 @@ src/main/groovy/
 - Implémenter la logique de clic souris (Robot, délais, cycles).
 - Implémenter la logique de touche clavier (Robot, durées).
 - Tester les modèles métier avec Spock (tests Groovy).
-- Créer des composants UI Swing pour éditer une séquence.
+- Enrichir la page principale JavaFX (édition, duplication, propriétés en direct).
 - Ajouter la persistance JSON des profils (sauvegarde/chargement).
 - Intégrer les raccourcis clavier globaux (hotkeys).
 

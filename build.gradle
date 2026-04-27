@@ -10,9 +10,17 @@ repositories {
     mavenCentral()
 }
 
+ext {
+    javafxVersion = '21.0.2'
+    javafxClassifier = 'win'
+}
+
 dependencies {
     implementation platform('org.apache.groovy:groovy-bom:4.0.29')
     implementation 'org.apache.groovy:groovy'
+    implementation "org.openjfx:javafx-base:${javafxVersion}:${javafxClassifier}"
+    implementation "org.openjfx:javafx-graphics:${javafxVersion}:${javafxClassifier}"
+    implementation "org.openjfx:javafx-controls:${javafxVersion}:${javafxClassifier}"
 }
 
 java {
@@ -28,4 +36,3 @@ application {
 tasks.withType(GroovyCompile).configureEach {
     options.encoding = 'UTF-8'
 }
-

@@ -7,10 +7,6 @@ import javafx.stage.Stage
 
 @CompileStatic
 final class MainApp extends Application {
-    static void main(String[] args) {
-        launch(args)
-    }
-
     @Override
     void start(Stage primaryStage) {
         MainView mainView = new MainView()

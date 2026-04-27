@@ -30,7 +30,7 @@ java {
 }
 
 application {
-    mainClass = 'fr.clickauto.app.MainApp'
+    mainClass = 'fr.clickauto.app.MainLauncher'
 }
 
 tasks.withType(GroovyCompile).configureEach {

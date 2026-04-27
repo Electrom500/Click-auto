@@ -1,0 +1,31 @@
+plugins {
+    id 'groovy'
+    id 'application'
+}
+
+group = 'fr.clickauto'
+version = '0.1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation platform('org.apache.groovy:groovy-bom:4.0.29')
+    implementation 'org.apache.groovy:groovy'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+application {
+    mainClass = 'fr.clickauto.app.MainApp'
+}
+
+tasks.withType(GroovyCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+

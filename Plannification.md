@@ -252,3 +252,21 @@ L'application sera considérée comme réussie si elle permet de :
 - Sauvegarder et recharger des profils.
 - Démarrer et arrêter proprement l'exécution.
 - Rester simple à comprendre pour un utilisateur PC.
+
+## 15. Suivi d'implémentation technique
+
+### État courant
+- Initialisation Gradle opérationnelle avec exécution locale validée.
+- Migration du point d'entrée applicatif en 100% Groovy.
+- UI de base exécutable (fenêtre Swing vide).
+
+### Décisions techniques actées
+- Plugin `groovy` activé dans `build.gradle`.
+- Cible JVM maintenue en Java 21 (toolchain Gradle) pour stabilité.
+- Utilisation de `@CompileStatic` sur l'entrypoint et, par défaut, sur les futures classes coeur.
+
+### Prochain lot technique
+- Créer le squelette UI MVP (barre de commandes, zone séquence, panneau propriétés).
+- Démarrer le modèle métier (`Action`, `ClickAction`, `KeyAction`, `Sequence`) en Groovy.
+- Ajouter des tests Groovy (Spock) sur la logique de séquence.
+

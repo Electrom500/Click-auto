@@ -259,7 +259,9 @@ L'application sera considérée comme réussie si elle permet de :
 
 - ✅ Initialisation Gradle opérationnelle.
 - ✅ Migration complète en 100% Groovy (`@CompileStatic` activé).
-- ✅ UI principale en JavaFX (base exécutable avec 4 zones).
+- ✅ UI principale en JavaFX avec navigation header.
+- ✅ Pages UI séparées en fichiers distincts (`clicks`, `touches clavier`, `record and replay`, `test`).
+- ✅ Page de gestion de clics dédiée avec ajout, édition, duplication, suppression et activation.
 - ✅ Modèles métier créés et testés à la compilation :
   - `Action` : interface générique.
   - `ClickAction` : clic souris (type, position, délai, activable).
@@ -275,12 +277,14 @@ L'application sera considérée comme réussie si elle permet de :
 - Cible JVM maintenue en Java 21 (toolchain Gradle) pour stabilité.
 - Utilisation de `@CompileStatic` sur domaine + entrypoint.
 - JavaFX choisi pour la page principale et la base d'interface.
+- Les pages UI sont découplées pour permettre une evolution independante.
+- L'onglet `clicks` est maintenant centré sur la gestion des `ClickAction`.
 
 ### Prochain lot technique (sprint 2)
 
 1. Créer `SequenceExecutor` pour exécuter les séquences.
 2. Implémenter les hooks de clic/touche avec `java.awt.Robot`.
-3. Étendre l'UI JavaFX (éditeur de séquence, liste d'actions, propriétés).
+3. Brancher la page de gestion de clics sur une logique métier/service dédié.
 4. Ajouter tests Spock Groovy sur la logique métier.
 5. Implémenter la persistance JSON (save/load profils).
 

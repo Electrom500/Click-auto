@@ -103,8 +103,8 @@ final class MainView {
     }
 
     private void setHeaderSelection(Button activeButton) {
-        List<Button> buttons = [clicksButton, keysButton, recordReplayButton, testButton]
-        for (Button button : buttons) {
+        Button[] navigationButtons = [clicksButton, keysButton, recordReplayButton, testButton] as Button[]
+        for (Button button : navigationButtons) {
             if (button == activeButton) {
                 button.setStyle('-fx-background-color: #2563eb; -fx-text-fill: white; -fx-font-weight: bold;')
             } else {

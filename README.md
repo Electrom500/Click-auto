@@ -68,7 +68,13 @@ Option `Application` (si necessaire):
   - champs X / Y,
   - bouton `Creer un clic` (clic souris reel via Robot),
   - bouton `Afficher popup`.
-- Onglet `clicks` conserve la zone sequence + proprietes + commandes.
+- Onglet `clicks` dédié à la gestion de clics:
+  - ajout,
+  - duplication,
+  - suppression,
+  - activation / désactivation,
+  - déplacement haut / bas,
+  - édition des coordonnées, du type et du délai.
 - Modèles métier complets:
   - `Action` : interface de base pour toute action.
   - `ClickAction` : représente un clic souris (LEFT, RIGHT, MIDDLE).

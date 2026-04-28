@@ -91,6 +91,14 @@ Ce document complete `Plannification.md` avec une vue technique plus detaillee:
 - Pourquoi: meilleure lisibilite, maintenance plus simple, evolution independante par page.
 - Impact: architecture UI modulaire avec partage du statut via callback `Consumer<String>`.
 
+## Decision D-010 - Page de gestion de clics dédiée
+
+- Date: 2026-04-28
+- Contexte: l'onglet clicks devait devenir une vraie zone de gestion des clics souris.
+- Choix: centraliser la création, duplication, suppression, activation et reordonnancement dans `ClicksPageView`.
+- Pourquoi: rendre l'édition des clics explicite et préparer l'execution future sans mélanger les touches clavier.
+- Impact: la page clicks devient spécifique aux `ClickAction`, avec édition par champs et compteur de clics actifs.
+
 ## 4. Structure de code actuelle
 
 ```
@@ -122,7 +130,7 @@ src/main/groovy/
 
 - `model/` : domaine purement metier, sans dependances UI.
 - `app/ui` : shell de navigation JavaFX.
-- `app/ui/pages` : pages fonctionnelles independantes (clicks, touches, record/replay, test).
+- `app/ui/pages` : pages fonctionnelles independantes (gestion clics, touches, record/replay, test).
 - `service/` ou `engine/` : viendra plus tard pour l'exécution.
 
 ## 5. Regles d'evolution technique

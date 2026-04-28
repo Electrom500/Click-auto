@@ -75,13 +75,36 @@ Ce document complete `Plannification.md` avec une vue technique plus detaillee:
 - Pourquoi: page principale plus lisible, séparation claire des zones (actions, propriétés, statut).
 - Impact: dépendances JavaFX ajoutées au build Gradle avec classifier Windows; base prête pour enrichir l'écran sans toucher au modèle métier.
 
+## Decision D-008 - Navigation header + onglet Test
+
+- Date: 2026-04-28
+- Contexte: besoin de naviguer rapidement entre blocs fonctionnels et valider les clics souris.
+- Choix: ajouter un header avec 4 sections (`clicks`, `touches clavier`, `record and replay`, `test`).
+- Pourquoi: préparer l'architecture UI modulaire tout en conservant un MVP simple.
+- Impact: l'onglet `test` permet un clic souris aux coordonnées X/Y via `java.awt.Robot` et un popup de validation.
+
+## Decision D-009 - Decoupage des pages UI en fichiers distincts
+
+- Date: 2026-04-28
+- Contexte: `MainView` devenait trop volumineux et melangeait navigation + contenu des pages.
+- Choix: conserver `MainView` comme shell (header, routage, statut) et extraire chaque page dans `ui/pages`.
+- Pourquoi: meilleure lisibilite, maintenance plus simple, evolution independante par page.
+- Impact: architecture UI modulaire avec partage du statut via callback `Consumer<String>`.
+
 ## 4. Structure de code actuelle
 
 ```
 src/main/groovy/
 ├── fr/clickauto/app/
 │   ├── MainApp.groovy              # Point d'entrée JavaFX
-│   └── ui/MainView.groovy          # Écran principal JavaFX (4 zones)
+│   ├── MainLauncher.groovy         # Lanceur JavaFX recommandé pour IDE
+│   └── ui/
+│       ├── MainView.groovy         # Shell: header + navigation + statut
+│       └── pages/
+│           ├── ClicksPageView.groovy
+│           ├── KeysPageView.groovy
+│           ├── RecordReplayPageView.groovy
+│           └── TestPageView.groovy
 └── fr/clickauto/model/
     ├── Action.groovy               # Interface de base pour les actions
     ├── ClickAction.groovy          # Clic souris (avec type, position, délai)
@@ -97,8 +120,9 @@ src/main/groovy/
 
 ### Notes sur le choix de package
 
-- `model/` : domaine purement métier, sans dépendances UI/Swing.
-- `app/` : couche présentation (MainApp, vues JavaFX).
+- `model/` : domaine purement metier, sans dependances UI.
+- `app/ui` : shell de navigation JavaFX.
+- `app/ui/pages` : pages fonctionnelles independantes (clicks, touches, record/replay, test).
 - `service/` ou `engine/` : viendra plus tard pour l'exécution.
 
 ## 5. Regles d'evolution technique
@@ -116,7 +140,7 @@ src/main/groovy/
 - Implémenter la logique de clic souris (Robot, délais, cycles).
 - Implémenter la logique de touche clavier (Robot, durées).
 - Tester les modèles métier avec Spock (tests Groovy).
-- Enrichir la page principale JavaFX (édition, duplication, propriétés en direct).
+- Ajouter des services dédiés par page (ex: clicks/test) pour sortir la logique des vues.
 - Ajouter la persistance JSON des profils (sauvegarde/chargement).
 - Intégrer les raccourcis clavier globaux (hotkeys).
 

@@ -41,16 +41,34 @@ gradle wrapper
 .\gradlew.bat run
 ```
 
+### Execution dans IntelliJ (erreur JavaFX runtime manquant)
+
+Si IntelliJ affiche `JavaFX runtime components are missing`, lance l'app via Gradle ou via le launcher:
+
+- Classe a lancer: `fr.clickauto.app.MainLauncher`
+- SDK du projet: Java 21
+- Type de configuration recommande: `Gradle` (task `run`)
+
+Option `Application` (si necessaire):
+
+- Main class: `fr.clickauto.app.MainLauncher`
+- VM options:
+
+```text
+--module-path "<chemin-vers-javafx-lib>" --add-modules=javafx.controls,javafx.graphics,javafx.base
+```
+
 ## Fonctionnalites principales developpees
 
 - Initialisation du projet Gradle (`application` + `groovy`).
 - Point d'entree Groovy: `fr.clickauto.app.MainApp` avec `@CompileStatic`.
 - Fenetre principale JavaFX exécutable.
-- Vue principale découpee en 4 zones:
-  - barre d'actions en haut,
-  - liste des actions au centre,
-  - panneau de propriétés à droite,
-  - barre d'état en bas.
+- Header de navigation: `clicks` - `touches clavier` - `record and replay` - `test`.
+- Onglet `test` disponible:
+  - champs X / Y,
+  - bouton `Creer un clic` (clic souris reel via Robot),
+  - bouton `Afficher popup`.
+- Onglet `clicks` conserve la zone sequence + proprietes + commandes.
 - Modèles métier complets:
   - `Action` : interface de base pour toute action.
   - `ClickAction` : représente un clic souris (LEFT, RIGHT, MIDDLE).
@@ -70,7 +88,14 @@ gradle wrapper
 src/main/groovy/
 ├── fr/clickauto/app/
 │   ├── MainApp.groovy          # Point d'entrée JavaFX
-│   └── ui/MainView.groovy      # Construction de l'écran principal JavaFX
+│   ├── MainLauncher.groovy     # Lanceur pour runtime JavaFX
+│   └── ui/
+│       ├── MainView.groovy                    # Shell (header + navigation + statut)
+│       └── pages/
+│           ├── ClicksPageView.groovy          # Page clicks
+│           ├── KeysPageView.groovy            # Page touches clavier
+│           ├── RecordReplayPageView.groovy    # Page record and replay
+│           └── TestPageView.groovy            # Page test (clic XY + popup)
 └── fr/clickauto/model/
     ├── Action.groovy            # Interface de base
     ├── ClickAction.groovy       # Action clic souris

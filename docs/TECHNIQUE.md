@@ -99,6 +99,25 @@ Ce document complete `Plannification.md` avec une vue technique plus detaillee:
 - Pourquoi: rendre l'édition des clics explicite et préparer l'execution future sans mélanger les touches clavier.
 - Impact: la page clicks devient spécifique aux `ClickAction`, avec édition par champs et compteur de clics actifs.
 
+## Decision D-011 - UX avancée page clicks (capture coordonnees + raccourcis)
+
+- Date: 2026-04-29
+- Contexte: besoin d'édition rapide et de capture de positions sans saisie manuelle.
+- Choix:
+  - corriger la sélection index `0` (bug lié à l'opérateur Elvis sur `getSelectedIndex()`),
+  - ajouter le déplacement `Shift+Haut` / `Shift+Bas`,
+  - ajouter un bouton `Enregistrer coordonnees` qui capte le prochain clic gauche via overlay JavaFX plein écran.
+- Pourquoi: améliorer la vitesse d'édition et éviter les erreurs de coordonnées.
+- Impact: meilleure ergonomie immédiate; pas de dépendance native supplémentaire.
+
+## Decision D-012 - Affichage hors application: stratégie progressive
+
+- Date: 2026-04-29
+- Contexte: besoin d'un retour visuel des points de clic en dehors de la page d'édition.
+- Choix: prioriser un overlay JavaFX transparent (capture de coordonnées) comme base technique.
+- Pourquoi: faisable sans SDK natif externe, déjà compatible avec l'architecture actuelle.
+- Impact: les marqueurs visuels "croix rouges" sur applications tierces restent planifiés pour une étape dédiée.
+
 ## 4. Structure de code actuelle
 
 ```
@@ -133,6 +152,12 @@ src/main/groovy/
 - `app/ui/pages` : pages fonctionnelles independantes (gestion clics, touches, record/replay, test).
 - `service/` ou `engine/` : viendra plus tard pour l'exécution.
 
+### Etat actuel de lancement de routine
+
+- Le moteur d'exécution (`SequenceExecutor`) n'est pas encore branché.
+- Les actions `Demarrer/Pause/Arreter` mettent actuellement à jour l'état UI.
+- Les hotkeys globales de lancement/arret sont planifiées mais non implémentées.
+
 ## 5. Regles d'evolution technique
 
 - Toute decision impactant architecture, perfs, securite ou UX doit ajouter une entree `Decision D-xxx`.
@@ -151,5 +176,6 @@ src/main/groovy/
 - Ajouter des services dédiés par page (ex: clicks/test) pour sortir la logique des vues.
 - Ajouter la persistance JSON des profils (sauvegarde/chargement).
 - Intégrer les raccourcis clavier globaux (hotkeys).
+- Ajouter l'affichage visuel externe des points de clic (croix/overlay en surcouche).
 
 

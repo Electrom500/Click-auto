@@ -74,7 +74,9 @@ Option `Application` (si necessaire):
   - suppression,
   - activation / désactivation,
   - déplacement haut / bas,
+  - déplacement clavier `Shift + Fleche Haut/Bas`,
   - édition des coordonnées, du type et du délai.
+  - bouton `Enregistrer coordonnees` pour remplir `X/Y` avec le prochain clic gauche capturé.
 - Modèles métier complets:
   - `Action` : interface de base pour toute action.
   - `ClickAction` : représente un clic souris (LEFT, RIGHT, MIDDLE).
@@ -85,8 +87,14 @@ Option `Application` (si necessaire):
 
 ## Bugs connus
 
-- Aucun bug fonctionnel liste a ce stade (MVP architecture en place).
+- Aucun bug fonctionnel bloquant liste a ce stade (MVP architecture en place).
 - Le projet ne peut pas etre lance sans Java et Gradle correctement installes dans le PATH.
+
+## Etat de la routine de clics
+
+- Le lancement reel d'une routine n'est pas encore implemente.
+- Les boutons de controle UI mettent a jour l'etat visuel, mais n'executent pas encore `SequenceExecutor`.
+- La prochaine etape est d'ajouter le moteur d'execution (`start/stop/pause`) et les hotkeys globales.
 
 ## Architecture du projet (actuelle)
 

@@ -109,6 +109,8 @@ L'application doit rester générique et ne pas dépendre d'un jeu ou d'un usage
 - Répétition continue.
 - Déclenchement manuel.
 - Raccourci clavier global.
+- Touche de lancement globale configurable.
+- Touche d'arrêt globale prioritaire (arrêt d'urgence).
 
 ### Comportements attendus
 - L'arrêt doit être immédiat.
@@ -262,6 +264,8 @@ L'application sera considérée comme réussie si elle permet de :
 - ✅ UI principale en JavaFX avec navigation header.
 - ✅ Pages UI séparées en fichiers distincts (`clicks`, `touches clavier`, `record and replay`, `test`).
 - ✅ Page de gestion de clics dédiée avec ajout, édition, duplication, suppression et activation.
+- ✅ Réordonnancement clavier dans la page clics (`Shift + Haut/Bas`).
+- ✅ Capture guidée des coordonnées du prochain clic gauche via bouton dédié.
 - ✅ Modèles métier créés et testés à la compilation :
   - `Action` : interface générique.
   - `ClickAction` : clic souris (type, position, délai, activable).
@@ -279,6 +283,7 @@ L'application sera considérée comme réussie si elle permet de :
 - JavaFX choisi pour la page principale et la base d'interface.
 - Les pages UI sont découplées pour permettre une evolution independante.
 - L'onglet `clicks` est maintenant centré sur la gestion des `ClickAction`.
+- Le lancement réel de routine reste à brancher sur un moteur dédié (`SequenceExecutor`).
 
 ### Prochain lot technique (sprint 2)
 

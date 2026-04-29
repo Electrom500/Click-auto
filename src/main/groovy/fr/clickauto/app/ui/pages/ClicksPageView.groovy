@@ -33,6 +33,7 @@ import javafx.scene.layout.GridPane
 import javafx.scene.layout.Pane
 import javafx.scene.layout.Priority
 import javafx.scene.layout.StackPane
+import javafx.scene.layout.HBox
 import javafx.scene.layout.VBox
 import javafx.scene.paint.Color
 import javafx.scene.text.Font
@@ -43,6 +44,7 @@ import javafx.stage.Stage
 import javafx.stage.StageStyle
 
 import java.util.function.Consumer
+import fr.clickauto.engine.SequenceExecutor
 
 @CompileStatic
 final class ClicksPageView {
@@ -61,10 +63,22 @@ final class ClicksPageView {
     private final CheckBox enabledCheckBox = new CheckBox('Clic actif')
     private final Button captureCoordinatesButton = new Button('Enregistrer coordonnées')
 
+    // Execution UI controls (moved under details)
+    private final ChoiceBox<String> sequenceModeChoiceBox = new ChoiceBox<>(FXCollections.observableArrayList('One shot', 'Boucle (infini)', 'Par cycles', 'Par duree (ms)'))
+    private final TextField seqCyclesField = new TextField()
+    private final TextField seqDurationField = new TextField()
+    private final TextField seqInitialDelayField = new TextField()
+
     private Node rootNode
     private ListView<ClickAction> clickList
     private boolean capturePending = false
     private Stage captureOverlay
+
+    // Execution controller and buttons
+    private SequenceExecutor executor
+    private Button startExecButton
+    private Button pauseExecButton
+    private Button stopExecButton
 
     ClicksPageView(Consumer<String> statusUpdater) {
         this.statusUpdater = statusUpdater
@@ -84,10 +98,44 @@ final class ClicksPageView {
     private Node createPage() {
         clickList = createClickList()
 
+        // create executor after clickList is available so highlighting can select items
+        executor = new SequenceExecutor(statusUpdater, { Integer idx ->
+            Platform.runLater { if (clickList != null) {
+                if (idx >= 0 && idx < clicks.size()) {
+                    clickList.getSelectionModel().select(idx)
+                } else {
+                    clickList.getSelectionModel().clearSelection()
+                }
+            } }
+        } as Consumer<Integer>)
+
         BorderPane page = new BorderPane()
         page.setTop(createToolbar())
         page.setCenter(createCenterPane())
         page.setRight(createEditorPane())
+
+        // local hotkeys when this page has focus: F8 start, F9 stop, F7 pause/resume
+        page.setOnKeyPressed({ KeyEvent event ->
+            if (executor == null) return
+            if (event.getCode() == KeyCode.F8) {
+                executor.start(sequence)
+                startExecButton.setDisable(true)
+                pauseExecButton.setDisable(false)
+                stopExecButton.setDisable(false)
+            } else if (event.getCode() == KeyCode.F9) {
+                executor.stop()
+                startExecButton.setDisable(false)
+                pauseExecButton.setDisable(true)
+                pauseExecButton.setText('Pause')
+                stopExecButton.setDisable(true)
+            } else if (event.getCode() == KeyCode.F7) {
+                if (executor.getState() == SequenceExecutor.State.RUNNING) {
+                    executor.pause(); pauseExecButton.setText('Reprendre')
+                } else if (executor.getState() == SequenceExecutor.State.PAUSED) {
+                    executor.resume(); pauseExecButton.setText('Pause')
+                }
+            }
+        } as EventHandler<KeyEvent>)
 
         BorderPane.setMargin(page.getCenter(), new Insets(0, 12, 0, 0))
         BorderPane.setMargin(page.getRight(), new Insets(0, 0, 0, 12))
@@ -169,11 +217,107 @@ final class ClicksPageView {
         Button applyButton = new Button('Appliquer')
         applyButton.setOnAction({ ActionEvent ignored -> applyEditorToSelected() } as EventHandler<ActionEvent>)
 
+        // Sequence execution settings
+        seqCyclesField.setPromptText('Nombre de cycles')
+        seqDurationField.setPromptText('Duree totale en ms')
+        seqInitialDelayField.setPromptText('Delai initial en ms')
+        sequenceModeChoiceBox.getSelectionModel().select('One shot')
+
+        GridPane execGrid = new GridPane()
+        execGrid.setHgap(10)
+        execGrid.setVgap(8)
+        execGrid.getColumnConstraints().addAll(new ColumnConstraints(120), new ColumnConstraints(220))
+        addRow(execGrid, 0, 'Mode sequence', sequenceModeChoiceBox)
+        addRow(execGrid, 1, 'Cycles', seqCyclesField)
+        addRow(execGrid, 2, 'Duree totale (ms)', seqDurationField)
+        addRow(execGrid, 3, 'Delai initial (ms)', seqInitialDelayField)
+
+        // Execution buttons below sequence settings
+        startExecButton = new Button('Démarrer')
+        pauseExecButton = new Button('Pause')
+        stopExecButton = new Button('Arrêter')
+        pauseExecButton.setDisable(true)
+        stopExecButton.setDisable(true)
+
+        HBox execButtons = new HBox(8, startExecButton, pauseExecButton, stopExecButton)
+
+        startExecButton.setOnAction({ ActionEvent ignored ->
+            applySequenceSettingsToModel()
+            if (executor != null) {
+                executor.start(sequence)
+                startExecButton.setDisable(true)
+                pauseExecButton.setDisable(false)
+                stopExecButton.setDisable(false)
+            }
+        } as EventHandler<ActionEvent>)
+
+        pauseExecButton.setOnAction({ ActionEvent ignored ->
+            if (executor != null) {
+                if (executor.getState() == SequenceExecutor.State.RUNNING) {
+                    executor.pause()
+                    pauseExecButton.setText('Reprendre')
+                } else if (executor.getState() == SequenceExecutor.State.PAUSED) {
+                    executor.resume()
+                    pauseExecButton.setText('Pause')
+                }
+            }
+        } as EventHandler<ActionEvent>)
+
+        stopExecButton.setOnAction({ ActionEvent ignored ->
+            if (executor != null) {
+                executor.stop()
+                startExecButton.setDisable(false)
+                pauseExecButton.setDisable(true)
+                pauseExecButton.setText('Pause')
+                stopExecButton.setDisable(true)
+            }
+        } as EventHandler<ActionEvent>)
+
         selectedActionLabel.setWrapText(true)
 
-        VBox editor = new VBox(10, title, grid, applyButton, new Separator(), selectedActionLabel)
+        Label hotkeysHint = new Label('Raccourcis (si la page a le focus): F8 = Démarrer · F7 = Pause/Reprendre · F9 = Arrêter')
+        hotkeysHint.setStyle('-fx-text-fill: #6b7280; -fx-font-size: 11;')
+
+        VBox editor = new VBox(10, title, grid, applyButton, new Separator(), execGrid, execButtons, hotkeysHint, new Separator(), selectedActionLabel)
         editor.setPrefWidth(380)
         return editor
+    }
+
+    private void applySequenceSettingsToModel() {
+        // read initial delay
+        try {
+            long init = 0L
+            if (seqInitialDelayField.getText() != null && !seqInitialDelayField.getText().trim().isEmpty()) {
+                init = Long.parseLong(seqInitialDelayField.getText().trim())
+            }
+            sequence.setInitialDelayMs(init)
+        } catch (Exception ignored) {}
+
+        String mode = sequenceModeChoiceBox.getSelectionModel().getSelectedItem()
+        try {
+            if (mode == 'Boucle (infini)') {
+                sequence.setCycles(0)
+                sequence.setTotalDurationMs(0L)
+            } else if (mode == 'One shot') {
+                sequence.setCycles(1)
+                sequence.setTotalDurationMs(0L)
+            } else if (mode == 'Par cycles') {
+                int c = 1
+                if (seqCyclesField.getText() != null && !seqCyclesField.getText().trim().isEmpty()) {
+                    c = Integer.parseInt(seqCyclesField.getText().trim())
+                }
+                sequence.setCycles(Math.max(1, c))
+                sequence.setTotalDurationMs(0L)
+            } else if (mode == 'Par duree (ms)') {
+                long d = 0L
+                if (seqDurationField.getText() != null && !seqDurationField.getText().trim().isEmpty()) {
+                    d = Long.parseLong(seqDurationField.getText().trim())
+                }
+                sequence.setTotalDurationMs(Math.max(0L, d))
+                // run until duration -> set cycles to 0 (infinite), executor will stop by duration
+                sequence.setCycles(0)
+            }
+        } catch (Exception ignored) {}
     }
 
     private ListView<ClickAction> createClickList() {

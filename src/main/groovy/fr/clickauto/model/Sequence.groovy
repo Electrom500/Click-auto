@@ -60,7 +60,8 @@ final class Sequence {
     }
 
     void setCycles(int cycles) {
-        this.cycles = Math.max(1, cycles)
+        // Allow 0 to mean "infinite" repetition. Keep positive values as-is.
+        this.cycles = Math.max(0, cycles)
     }
 
     long getTotalDurationMs() {

@@ -2,15 +2,19 @@ package fr.clickauto.engine
 
 import fr.clickauto.model.Action
 import fr.clickauto.model.ClickAction
+import fr.clickauto.model.ClickType
 import fr.clickauto.model.KeyAction
 import fr.clickauto.model.Sequence
 import groovy.transform.CompileStatic
+import javafx.application.Platform
 
 import java.awt.Robot
 import java.awt.AWTException
-import java.awt.event.InputEvent
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.function.Consumer
+import static java.awt.event.InputEvent.BUTTON1_DOWN_MASK
+import static java.awt.event.InputEvent.BUTTON2_DOWN_MASK
+import static java.awt.event.InputEvent.BUTTON3_DOWN_MASK
 
 /**
  * Moteur d'exécution d'une Sequence. Exécute ClickAction et KeyAction via java.awt.Robot.
@@ -34,7 +38,23 @@ final class SequenceExecutor {
             this.robot = new Robot()
         } catch (AWTException e) {
             this.robot = null
-            statusUpdater.accept('Impossible d\'initialiser Robot: ' + e.getMessage())
+            notifyStatus('Impossible d\'initialiser Robot: ' + e.getMessage())
+        }
+    }
+
+    private void notifyStatus(String message) {
+        if (Platform.isFxApplicationThread()) {
+            statusUpdater.accept(message)
+        } else {
+            Platform.runLater({ -> statusUpdater.accept(message) } as Runnable)
+        }
+    }
+
+    private void clearHighlight() {
+        try {
+            actionHighlighter.accept(-1)
+        } catch (Exception ignored) {
+            // ignore UI highlight cleanup failures
         }
     }
 
@@ -44,7 +64,7 @@ final class SequenceExecutor {
 
     void start(Sequence sequence) {
         if (state == State.RUNNING) {
-            statusUpdater.accept('Sequence deja en cours')
+            notifyStatus('Sequence deja en cours')
             return
         }
         stopRequested.set(false)
@@ -53,7 +73,7 @@ final class SequenceExecutor {
         } as Runnable)
         worker.setDaemon(true)
         state = State.RUNNING
-        statusUpdater.accept('Execution demarree')
+        notifyStatus('Execution demarree')
         worker.start()
     }
 
@@ -62,7 +82,7 @@ final class SequenceExecutor {
             return
         }
         state = State.PAUSED
-        statusUpdater.accept('Execution en pause')
+        notifyStatus('Execution en pause')
     }
 
     void resume() {
@@ -70,13 +90,13 @@ final class SequenceExecutor {
             return
         }
         state = State.RUNNING
-        statusUpdater.accept('Execution reprise')
+        notifyStatus('Execution reprise')
     }
 
     void stop() {
         stopRequested.set(true)
         state = State.STOPPED
-        statusUpdater.accept('Arret demande')
+        notifyStatus('Arret demande')
         if (worker != null) {
             worker.interrupt()
         }
@@ -138,15 +158,14 @@ final class SequenceExecutor {
                 }
                 performedCycles++
             }
-        } catch (InterruptedException ie) {
+        } catch (InterruptedException ignored) {
             // thread interrupted -> stop
         } catch (Exception ex) {
-            statusUpdater.accept('Erreur lors de l\'execution: ' + ex.getMessage())
+            notifyStatus('Erreur lors de l\'execution: ' + ex.getMessage())
         } finally {
             state = stopRequested.get() ? State.STOPPED : State.IDLE
-            statusUpdater.accept(state == State.STOPPED ? 'Execution arrete' : 'Execution terminee')
-            // clear highlight
-            try { actionHighlighter.accept(-1) } catch (Exception ignored) {}
+            notifyStatus(state == State.STOPPED ? 'Execution arrete' : 'Execution terminee')
+            clearHighlight()
         }
     }
 
@@ -155,16 +174,16 @@ final class SequenceExecutor {
         int x = ca.getX()
         int y = ca.getY()
         robot.mouseMove(x, y)
-        int mask = InputEvent.BUTTON1_DOWN_MASK
+        int mask = BUTTON1_DOWN_MASK
         switch (ca.getClickType()) {
-            case fr.clickauto.model.ClickType.RIGHT:
-                mask = InputEvent.BUTTON3_DOWN_MASK
+            case RIGHT:
+                mask = BUTTON3_DOWN_MASK
                 break
-            case fr.clickauto.model.ClickType.MIDDLE:
-                mask = InputEvent.BUTTON2_DOWN_MASK
+            case MIDDLE:
+                mask = BUTTON2_DOWN_MASK
                 break
             default:
-                mask = InputEvent.BUTTON1_DOWN_MASK
+                mask = BUTTON1_DOWN_MASK
         }
         robot.mousePress(mask)
         robot.mouseRelease(mask)

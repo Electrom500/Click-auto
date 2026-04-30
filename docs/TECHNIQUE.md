@@ -41,6 +41,7 @@ Ce document complete `Plannification.md` avec une vue technique plus detaillee:
 - Choix: demarrer avec Swing.
 - Pourquoi: inclus dans le JDK, zero dependance UI externe.
 - Impact: mise en route rapide; migration JavaFX possible plus tard si besoin UX.
+- Note: ce choix a ensuite été remplacé par une base JavaFX quand l'UI s'est enrichie.
 
 ## Decision D-004 - Migration applicative en 100% Groovy
 
@@ -66,6 +67,7 @@ Ce document complete `Plannification.md` avec une vue technique plus detaillee:
 - Pourquoi: zero dependance externe, executable immediatement, robuste.
 - Impact: JavaFX peut etre adopte plus tard si besoin UX plus avancee; pour MVP, Swing suffit largement.
 - Note: migration vers JavaFX reste simple a faire une fois la logique stabilisee.
+- Statut: decision historique, remplacee ensuite par JavaFX pour l'application courante.
 
 ## Decision D-007 - Passage de la page principale en JavaFX
 
@@ -118,6 +120,22 @@ Ce document complete `Plannification.md` avec une vue technique plus detaillee:
 - Pourquoi: faisable sans SDK natif externe, déjà compatible avec l'architecture actuelle.
 - Impact: les marqueurs visuels "croix rouges" sur applications tierces restent planifiés pour une étape dédiée.
 
+## Decision D-013 - Capture de coordonnées globale avec fallback overlay
+
+- Date: 2026-04-30
+- Contexte: le bouton `Enregistrer coordonnees` devait viser d'autres applications, pas seulement la fenêtre courante.
+- Choix: tenter d'abord une capture globale via `com.github.kwhat.jnativehook`, puis basculer sur un overlay plein écran si le hook natif n'est pas disponible.
+- Pourquoi: conserver une UX simple sans bloquer le projet sur une dépendance native obligatoire.
+- Impact: la capture de coordonnées devient plus utile pour cibler d'autres applications, avec mode secours intégré.
+
+## Decision D-014 - Sécurisation des callbacks UI du moteur
+
+- Date: 2026-04-30
+- Contexte: des erreurs `Not on FX application thread` sont apparues lors du lancement d'une séquence.
+- Choix: marshaller systématiquement les messages de statut du moteur vers le thread JavaFX.
+- Pourquoi: éviter les accès UI hors thread et stabiliser les mises à jour de statut.
+- Impact: `SequenceExecutor` peut rester sur un thread dédié tout en mettant à jour l'interface sans exception.
+
 ## 4. Structure de code actuelle
 
 ```
@@ -154,9 +172,10 @@ src/main/groovy/
 
 ### Etat actuel de lancement de routine
 
-- Le moteur d'exécution (`SequenceExecutor`) n'est pas encore branché.
-- Les actions `Demarrer/Pause/Arreter` mettent actuellement à jour l'état UI.
-- Les hotkeys globales de lancement/arret sont planifiées mais non implémentées.
+- Le moteur d'exécution (`SequenceExecutor`) est branché sur la page `clicks`.
+- Les boutons `Démarrer / Pause / Arrêter` contrôlent réellement l'exécution.
+- Les hotkeys locales `F8 / F7 / F9` sont disponibles dans la page et l'overlay.
+- Les messages de statut sont renvoyés sur le thread JavaFX pour éviter les exceptions de thread.
 
 ## 5. Regles d'evolution technique
 
@@ -170,12 +189,9 @@ src/main/groovy/
 ## 6. Backlog technique court terme
 
 - Créer un service d'execution `SequenceExecutor` pour start/stop/pause/resume.
-- Implémenter la logique de clic souris (Robot, délais, cycles).
-- Implémenter la logique de touche clavier (Robot, durées).
-- Tester les modèles métier avec Spock (tests Groovy).
-- Ajouter des services dédiés par page (ex: clicks/test) pour sortir la logique des vues.
-- Ajouter la persistance JSON des profils (sauvegarde/chargement).
-- Intégrer les raccourcis clavier globaux (hotkeys).
-- Ajouter l'affichage visuel externe des points de clic (croix/overlay en surcouche).
+- Finaliser la persistance JSON des profils (sauvegarde/chargement).
+- Ajouter des tests Spock sur `Sequence`, `ClickAction`, `KeyAction` et `SequenceExecutor`.
+- Ajouter des hotkeys globales si le besoin hors focus devient prioritaire.
+- Compléter l'affichage visuel externe des points de clic avec click-through natif Windows si nécessaire.
 
 

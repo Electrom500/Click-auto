@@ -21,6 +21,7 @@ dependencies {
     implementation "org.openjfx:javafx-base:${javafxVersion}:${javafxClassifier}"
     implementation "org.openjfx:javafx-graphics:${javafxVersion}:${javafxClassifier}"
     implementation "org.openjfx:javafx-controls:${javafxVersion}:${javafxClassifier}"
+    implementation 'com.github.kwhat:jnativehook:2.2.2'
 }
 
 java {

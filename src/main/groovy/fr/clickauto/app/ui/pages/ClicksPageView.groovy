@@ -1,5 +1,6 @@
 package fr.clickauto.app.ui.pages
 
+import fr.clickauto.app.ui.OverlayWindow
 import fr.clickauto.model.ClickAction
 import fr.clickauto.model.ClickType
 import fr.clickauto.model.Sequence
@@ -45,6 +46,12 @@ import javafx.stage.StageStyle
 
 import java.util.function.Consumer
 import fr.clickauto.engine.SequenceExecutor
+import com.github.kwhat.jnativehook.GlobalScreen
+import com.github.kwhat.jnativehook.NativeHookException
+import com.github.kwhat.jnativehook.mouse.NativeMouseEvent
+import com.github.kwhat.jnativehook.mouse.NativeMouseListener
+import java.util.logging.Level
+import java.util.logging.Logger
 
 @CompileStatic
 final class ClicksPageView {
@@ -55,13 +62,13 @@ final class ClicksPageView {
     private final Label sequenceNameValue = new Label(sequence.getName())
     private final Label clickCountValue = new Label('0')
     private final Label enabledCountValue = new Label('0')
-    private final Label selectedActionLabel = new Label('Aucun clic sélectionné')
+    private final Label selectedActionLabel = new Label('Aucun clic sélectionne')
     private final ChoiceBox<ClickType> typeChoiceBox = new ChoiceBox<>(FXCollections.observableArrayList(ClickType.values()))
     private final TextField xField = new TextField()
     private final TextField yField = new TextField()
     private final TextField delayField = new TextField()
     private final CheckBox enabledCheckBox = new CheckBox('Clic actif')
-    private final Button captureCoordinatesButton = new Button('Enregistrer coordonnées')
+    private final Button captureCoordinatesButton = new Button('Enregistrer coordonnees')
 
     // Execution UI controls (moved under details)
     private final ChoiceBox<String> sequenceModeChoiceBox = new ChoiceBox<>(FXCollections.observableArrayList('One shot', 'Boucle (infini)', 'Par cycles', 'Par duree (ms)'))
@@ -73,6 +80,7 @@ final class ClicksPageView {
     private ListView<ClickAction> clickList
     private boolean capturePending = false
     private Stage captureOverlay
+    private OverlayWindow overlayWindow
 
     // Execution controller and buttons
     private SequenceExecutor executor
@@ -157,7 +165,21 @@ final class ClicksPageView {
         upButton.setOnAction({ ActionEvent ignored -> moveSelectedClick(-1) } as EventHandler<ActionEvent>)
         downButton.setOnAction({ ActionEvent ignored -> moveSelectedClick(1) } as EventHandler<ActionEvent>)
 
-        return new ToolBar(addButton, duplicateButton, deleteButton, toggleButton, upButton, downButton)
+        Button overlayToggle = new Button('Overlay')
+        overlayToggle.setOnAction({ ActionEvent ignored ->
+            try {
+                if (executor == null) return
+                // lazy create overlay
+                if (overlayWindow == null) {
+                    overlayWindow = new OverlayWindow(executor, sequence)
+                }
+                overlayWindow.toggle()
+            } catch (Exception ex) {
+                statusUpdater.accept('Impossible d\'afficher l\'overlay: ' + ex.getMessage())
+            }
+        } as EventHandler<ActionEvent>)
+
+        return new ToolBar(addButton, duplicateButton, deleteButton, toggleButton, upButton, downButton, new Separator(), overlayToggle)
     }
 
     private Node createCenterPane() {
@@ -517,7 +539,7 @@ final class ClicksPageView {
             ClickAction click = new ClickAction(type, delay, x, y)
             click.setEnabled(enabledCheckBox.isSelected())
             return click
-        } catch (Exception ex) {
+        } catch (Exception ignored) {
             statusUpdater.accept('Champs invalides pour le clic: verifier X, Y et delai')
             return null
         }
@@ -555,37 +577,74 @@ final class ClicksPageView {
             return
         }
 
+        // Try global capture via JNativeHook. Fallback to overlay.
         capturePending = true
-        statusUpdater.accept('Capture active: clique gauche (overlay) pour enregistrer X/Y')
+        statusUpdater.accept('Capture active: clique gauche dans n\'importe quelle fenetre pour enregistrer X/Y')
 
-        Rectangle2D bounds = Screen.getPrimary().getBounds()
-        Pane pane = new Pane()
-        pane.setStyle('-fx-background-color: rgba(37,99,235,0.12);')
+        try {
+            try {
+                Logger logger = Logger.getLogger(GlobalScreen.class.getPackage().getName())
+                logger.setLevel(Level.OFF)
+            } catch (Exception ignored) {}
 
-        captureOverlay = new Stage(StageStyle.TRANSPARENT)
-        captureOverlay.setAlwaysOnTop(true)
-        captureOverlay.setX(bounds.getMinX())
-        captureOverlay.setY(bounds.getMinY())
+            GlobalScreen.registerNativeHook()
 
-        Scene overlayScene = new Scene(pane, bounds.getWidth(), bounds.getHeight(), Color.TRANSPARENT)
-        overlayScene.setOnKeyPressed({ KeyEvent event ->
-            if (event.getCode() == KeyCode.ESCAPE) {
-                stopCaptureOverlay('Capture annulee')
+            NativeMouseListener listener = new NativeMouseListener() {
+                @Override
+                void nativeMouseClicked(NativeMouseEvent event) {
+                    try {
+                        final int sx = event.getX()
+                        final int sy = event.getY()
+                        Platform.runLater {
+                            xField.setText(Integer.toString(sx))
+                            yField.setText(Integer.toString(sy))
+                            stopCaptureOverlay('Coordonnees capturees: (' + sx + ', ' + sy + ')')
+                        }
+                    } finally {
+                        try { GlobalScreen.removeNativeMouseListener(this) } catch (Exception ignored) {}
+                        try { GlobalScreen.unregisterNativeHook() } catch (Exception ignored) {}
+                    }
+                }
+
+                @Override void nativeMousePressed(NativeMouseEvent event) {}
+                @Override void nativeMouseReleased(NativeMouseEvent event) {}
             }
-        } as EventHandler<KeyEvent>)
 
-        pane.setOnMouseClicked { event ->
-            if (event.getButton() != MouseButton.PRIMARY || !capturePending) {
-                return
+            GlobalScreen.addNativeMouseListener(listener)
+        } catch (NativeHookException ignored) {
+            // Fallback to overlay capture
+            capturePending = true
+            statusUpdater.accept('Impossible d\'initialiser la capture globale, utilisation de l\'overlay')
+
+            Rectangle2D bounds = Screen.getPrimary().getBounds()
+            Pane pane = new Pane()
+            pane.setStyle('-fx-background-color: rgba(37,99,235,0.12);')
+
+            captureOverlay = new Stage(StageStyle.TRANSPARENT)
+            captureOverlay.setAlwaysOnTop(true)
+            captureOverlay.setX(bounds.getMinX())
+            captureOverlay.setY(bounds.getMinY())
+
+            Scene overlayScene = new Scene(pane, bounds.getWidth(), bounds.getHeight(), Color.TRANSPARENT)
+            overlayScene.setOnKeyPressed({ KeyEvent event ->
+                if (event.getCode() == KeyCode.ESCAPE) {
+                    stopCaptureOverlay('Capture annulee')
+                }
+            } as EventHandler<KeyEvent>)
+
+            pane.setOnMouseClicked { event ->
+                if (event.getButton() != MouseButton.PRIMARY || !capturePending) {
+                    return
+                }
+                xField.setText(Integer.toString((int) event.getScreenX()))
+                yField.setText(Integer.toString((int) event.getScreenY()))
+                stopCaptureOverlay('Coordonnees capturees: (' + (int) event.getScreenX() + ', ' + (int) event.getScreenY() + ')')
             }
-            xField.setText(Integer.toString((int) event.getScreenX()))
-            yField.setText(Integer.toString((int) event.getScreenY()))
-            stopCaptureOverlay('Coordonnees capturees: (' + (int) event.getScreenX() + ', ' + (int) event.getScreenY() + ')')
+
+            captureOverlay.setScene(overlayScene)
+            captureOverlay.show()
+            Platform.runLater { pane.requestFocus() }
         }
-
-        captureOverlay.setScene(overlayScene)
-        captureOverlay.show()
-        Platform.runLater { pane.requestFocus() }
     }
 
     private void stopCaptureOverlay(String status) {

@@ -266,12 +266,15 @@ L'application sera considérée comme réussie si elle permet de :
 - ✅ Page de gestion de clics dédiée avec ajout, édition, duplication, suppression et activation.
 - ✅ Réordonnancement clavier dans la page clics (`Shift + Haut/Bas`).
 - ✅ Capture guidée des coordonnées du prochain clic gauche via bouton dédié.
+- ✅ Gestion des clics finalisée côté UI: toolbar d'édition, panneau de propriétés, contrôles d'exécution, modes de séquence et raccourcis locaux.
 - ✅ Modèles métier créés et testés à la compilation :
   - `Action` : interface générique.
   - `ClickAction` : clic souris (type, position, délai, activable).
   - `KeyAction` : touche clavier (code, durée, délai, activable).
   - `ClickType` : énumération LEFT/RIGHT/MIDDLE.
   - `Sequence` : conteneur d'actions (cycles, durée totale, délai initial, gestion d'ordre).
+- ✅ `SequenceExecutor` branché à l'UI avec gestion de start / pause / stop / resume sur thread dédié.
+- ✅ Capture de coordonnées compatible avec autres applications: hook global JNativeHook quand disponible, fallback overlay sinon.
 - ✅ Build avec Gradle en 100% succès.
 
 ### Décisions techniques actées
@@ -287,10 +290,9 @@ L'application sera considérée comme réussie si elle permet de :
 
 ### Prochain lot technique (sprint 2)
 
-1. Créer `SequenceExecutor` pour exécuter les séquences.
-2. Implémenter les hooks de clic/touche avec `java.awt.Robot`.
-3. Brancher la page de gestion de clics sur une logique métier/service dédié.
-4. Ajouter tests Spock Groovy sur la logique métier.
-5. Implémenter la persistance JSON (save/load profils).
+1. Ajouter la persistance JSON (save/load profils).
+2. Ajouter les tests Spock Groovy sur `Sequence`, `ClickAction`, `KeyAction` et `SequenceExecutor`.
+3. Compléter les hotkeys globales si le besoin hors focus est confirmé.
+4. Ajouter le click-through natif Windows pour l'overlay externe si nécessaire.
 
 

@@ -10,7 +10,10 @@ Le projet est maintenant structure autour d'une UI JavaFX et d'un moteur d'execu
 - Page `clicks` dédiée à la gestion des clics.
 - Moteur `SequenceExecutor` pour start / pause / resume / stop.
 - Capture des coordonnées via clic global quand disponible, avec fallback overlay.
-- Hotkeys locales sur la page et l'overlay : F8 démarrer, F7 pause/reprendre, F9 arrêter.
+- Hotkeys locales sur la page et l'overlay : F8 démarrer, F7 pause/reprendre, F9 arrêter, F6 basculer le mode click-through de l'overlay.
+- Confirmation obligatoire avant lancement en mode infini, avec rappel explicite de F9 pour arrêter.
+- Sauvegarde / chargement JSON des profils depuis l'onglet `clicks`.
+- Overlay Windows configuré en click-through natif / best-effort pour ne pas bloquer les autres applications.
 - Modèles métier créés : `Action`, `ClickAction`, `KeyAction`, `Sequence`.
 - Compilation Gradle validée.
 
@@ -83,13 +86,14 @@ Option `Application` (si necessaire):
   - bouton `Enregistrer coordonnees` pour remplir `X/Y` avec le prochain clic gauche capturé.
   - panneau d'execution avec mode de séquence (`One shot`, boucle infinie, cycles, durée), délai initial, et boutons `Démarrer / Pause / Arrêter`.
   - hotkeys locales pour piloter l'execution (`F8`, `F7`, `F9`).
+   - boutons `Sauvegarder` / `Charger` pour les profils JSON.
 - Modèles métier complets:
   - `Action` : interface de base pour toute action.
   - `ClickAction` : représente un clic souris (LEFT, RIGHT, MIDDLE).
   - `KeyAction` : représente une touche clavier avec durée de maintien.
   - `ClickType` : énumération des types de clics.
-  - `Sequence` : conteneur de séquence d'actions avec cycles et délais.
-    - Structure de base prête pour séparer UI, moteur d'execution et persistance.
+   - `Sequence` : conteneur de séquence d'actions avec cycles et délais.
+   - Structure de base prête pour séparer UI, moteur d'execution et persistance.
 
 ## Bugs connus
 
@@ -103,6 +107,8 @@ Option `Application` (si necessaire):
 - Le moteur gère `start/stop/pause/resume` sur un thread dédié.
 - Les callbacks UI sont sérialisés sur le thread JavaFX pour éviter les erreurs de thread.
 - Les hotkeys globales restent une évolution possible, au-delà des raccourcis locaux actuels.
+- Le mode infini affiche une confirmation avant lancement et rappelle l'arrêt via F9.
+- L'overlay peut passer en mode click-through sous Windows pour ne pas bloquer le travail dans d'autres applications.
 
 ## Architecture du projet (actuelle)
 
@@ -133,8 +139,7 @@ src/main/groovy/
 
 ## Prochaines etapes conseillees
 
-1. Finaliser la persistance JSON des profils.
-2. Ajouter des tests Groovy / Spock sur `Sequence` et `SequenceExecutor`.
-3. Ajouter la configuration des hotkeys globales si besoin.
-4. Compléter la partie visuelle d'exécution (overlay click-through natif sous Windows si nécessaire).
+1. Ajouter des tests Groovy / Spock sur `Sequence`, `SequenceExecutor` et la persistance JSON.
+2. Ajouter la configuration des hotkeys globales si besoin.
+3. Étendre la gestion multi-profils si l'export/import doit devenir plus avancé.
 

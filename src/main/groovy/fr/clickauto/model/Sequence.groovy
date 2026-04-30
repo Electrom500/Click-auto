@@ -2,7 +2,6 @@ package fr.clickauto.model
 
 import groovy.transform.CompileStatic
 import groovy.transform.ToString
-import fr.clickauto.model.Action
 
 /**
  * Représente une séquence configurable d'actions (clics et touches).
@@ -10,7 +9,7 @@ import fr.clickauto.model.Action
 @CompileStatic
 @ToString(includes = 'name,actions,cycles,totalDurationMs')
 final class Sequence {
-    private final String name
+    private String name
     private final List<Action> actions
     private int cycles
     private long totalDurationMs
@@ -33,6 +32,12 @@ final class Sequence {
         return name
     }
 
+    void setName(String name) {
+        if (name != null && !name.trim().isEmpty()) {
+            this.name = name.trim()
+        }
+    }
+
     List<Action> getActions() {
         return new ArrayList<>(actions)
     }
@@ -41,6 +46,10 @@ final class Sequence {
         if (action != null) {
             actions.add(action)
         }
+    }
+
+    void clearActions() {
+        actions.clear()
     }
 
     void removeAction(int index) {

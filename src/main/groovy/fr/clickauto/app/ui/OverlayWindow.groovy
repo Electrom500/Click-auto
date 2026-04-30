@@ -1,7 +1,7 @@
 package fr.clickauto.app.ui
 
 import fr.clickauto.engine.SequenceExecutor
-import fr.clickauto.model.Sequence
+import fr.clickauto.app.ui.WindowsClickThroughSupport
 import groovy.transform.CompileStatic
 import javafx.application.Platform
 import javafx.event.ActionEvent
@@ -28,13 +28,20 @@ import javafx.stage.StageStyle
 final class OverlayWindow {
     private final Stage stage
     private final SequenceExecutor executor
+    private final Runnable startAction
+    private final Runnable pauseAction
+    private final Runnable stopAction
     private final Label statusLabel = new Label('Idle')
+    private boolean clickThroughEnabled = true
 
     private double dragOffsetX = 0
     private double dragOffsetY = 0
 
-    OverlayWindow(SequenceExecutor executor, Sequence sequence) {
+    OverlayWindow(SequenceExecutor executor, Runnable startAction, Runnable pauseAction, Runnable stopAction) {
         this.executor = executor
+        this.startAction = startAction
+        this.pauseAction = pauseAction
+        this.stopAction = stopAction
         stage = new Stage(StageStyle.TRANSPARENT)
         stage.setAlwaysOnTop(true)
 
@@ -42,17 +49,15 @@ final class OverlayWindow {
         Button pause = new Button('⏸')
         Button stop = new Button('■')
         start.setOnAction({ ActionEvent e ->
-            if (executor != null) executor.start(sequence)
+            if (startAction != null) startAction.run()
             updateStatus()
         } as EventHandler<ActionEvent>)
         pause.setOnAction({ ActionEvent e ->
-            if (executor != null) {
-                if (executor.getState() == SequenceExecutor.State.RUNNING) executor.pause() else if (executor.getState() == SequenceExecutor.State.PAUSED) executor.resume()
-            }
+            if (pauseAction != null) pauseAction.run()
             updateStatus()
         } as EventHandler<ActionEvent>)
         stop.setOnAction({ ActionEvent e ->
-            if (executor != null) executor.stop()
+            if (stopAction != null) stopAction.run()
             updateStatus()
         } as EventHandler<ActionEvent>)
 
@@ -80,18 +85,16 @@ final class OverlayWindow {
         scene.setOnKeyPressed({ KeyEvent event ->
             if (executor == null) return
             if (event.getCode() == KeyCode.F8) {
-                executor.start(sequence)
+                if (startAction != null) startAction.run()
                 updateStatus()
             } else if (event.getCode() == KeyCode.F9) {
-                executor.stop()
+                if (stopAction != null) stopAction.run()
                 updateStatus()
             } else if (event.getCode() == KeyCode.F7) {
-                if (executor.getState() == SequenceExecutor.State.RUNNING) {
-                    executor.pause()
-                } else if (executor.getState() == SequenceExecutor.State.PAUSED) {
-                    executor.resume()
-                }
+                if (pauseAction != null) pauseAction.run()
                 updateStatus()
+            } else if (event.getCode() == KeyCode.F6) {
+                setClickThroughEnabled(!clickThroughEnabled)
             }
         } as EventHandler<KeyEvent>)
         stage.setScene(scene)
@@ -99,7 +102,11 @@ final class OverlayWindow {
 
     void show() {
         if (!stage.isShowing()) {
-            Platform.runLater { stage.show(); updateStatus() }
+            Platform.runLater {
+                stage.show()
+                setClickThroughEnabled(clickThroughEnabled)
+                updateStatus()
+            }
         }
     }
 
@@ -113,10 +120,18 @@ final class OverlayWindow {
         if (stage.isShowing()) hide() else show()
     }
 
+    void setClickThroughEnabled(boolean enabled) {
+        clickThroughEnabled = enabled
+        WindowsClickThroughSupport.apply(stage, enabled)
+        Platform.runLater {
+            statusLabel.setText((executor != null ? executor.getState().toString() : 'IDLE') + (enabled ? ' | PT ON' : ' | PT OFF'))
+        }
+    }
+
     void updateStatus() {
         if (executor == null) return
         def s = executor.getState().toString()
-        Platform.runLater { statusLabel.setText(s) }
+        Platform.runLater { statusLabel.setText(s + (clickThroughEnabled ? ' | PT ON' : ' | PT OFF')) }
     }
 }
 

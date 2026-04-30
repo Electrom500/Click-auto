@@ -18,10 +18,13 @@ ext {
 dependencies {
     implementation platform('org.apache.groovy:groovy-bom:4.0.29')
     implementation 'org.apache.groovy:groovy'
+    implementation 'org.apache.groovy:groovy-json'
     implementation "org.openjfx:javafx-base:${javafxVersion}:${javafxClassifier}"
     implementation "org.openjfx:javafx-graphics:${javafxVersion}:${javafxClassifier}"
     implementation "org.openjfx:javafx-controls:${javafxVersion}:${javafxClassifier}"
     implementation 'com.github.kwhat:jnativehook:2.2.2'
+    implementation 'net.java.dev.jna:jna:5.14.0'
+    implementation 'net.java.dev.jna:jna-platform:5.14.0'
 }
 
 java {

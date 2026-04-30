@@ -120,6 +120,30 @@ Ce document complete `Plannification.md` avec une vue technique plus detaillee:
 - Pourquoi: faisable sans SDK natif externe, déjà compatible avec l'architecture actuelle.
 - Impact: les marqueurs visuels "croix rouges" sur applications tierces restent planifiés pour une étape dédiée.
 
+## Decision D-013 - Persistance JSON des profils de clics
+
+- Date: 2026-04-30
+- Contexte: besoin de sauvegarder et recharger rapidement des séquences de clics depuis l'onglet `clicks`.
+- Choix: utiliser `groovy.json.JsonOutput` / `JsonSlurper` et un petit service dédié `SequenceProfileStore`.
+- Pourquoi: zéro dépendance lourde, format lisible, maintenable et facile à exporter.
+- Impact: les profils peuvent être sérialisés en JSON avec les cycles, délais et actions.
+
+## Decision D-014 - Confirmation obligatoire du mode infini
+
+- Date: 2026-04-30
+- Contexte: un démarrage involontaire d'une boucle infinie peut bloquer l'utilisateur.
+- Choix: afficher une confirmation avant lancement lorsque `Sequence.cycles == 0`.
+- Pourquoi: réduire le risque d'erreur et rappeler explicitement la touche d'arrêt `F9`.
+- Impact: lancement plus sûr, surtout pour les séquences répétées sans limite.
+
+## Decision D-015 - Click-through overlay Windows
+
+- Date: 2026-04-30
+- Contexte: l'overlay visuel ne devait pas bloquer les interactions avec les autres applications.
+- Choix: implémenter un support Windows via JNA avec un fallback JavaFX best-effort.
+- Pourquoi: rester Windows-first tout en gardant une solution de secours si l'accès au handle natif échoue.
+- Impact: l'overlay peut fonctionner en mode pass-through et laisser la souris au système sous-jacent.
+
 ## Decision D-013 - Capture de coordonnées globale avec fallback overlay
 
 - Date: 2026-04-30
@@ -176,6 +200,9 @@ src/main/groovy/
 - Les boutons `Démarrer / Pause / Arrêter` contrôlent réellement l'exécution.
 - Les hotkeys locales `F8 / F7 / F9` sont disponibles dans la page et l'overlay.
 - Les messages de statut sont renvoyés sur le thread JavaFX pour éviter les exceptions de thread.
+- Le mode infini déclenche une confirmation de sécurité avant démarrage.
+- Le fichier de profil JSON est géré directement depuis l'onglet `clicks`.
+- L'overlay peut passer en click-through pour ne pas bloquer les clics dans les autres applications.
 
 ## 5. Regles d'evolution technique
 

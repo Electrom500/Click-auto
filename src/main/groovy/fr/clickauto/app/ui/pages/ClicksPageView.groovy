@@ -16,7 +16,9 @@ import javafx.geometry.Insets
 import javafx.geometry.Rectangle2D
 import javafx.scene.Node
 import javafx.scene.Scene
+import javafx.scene.control.Alert
 import javafx.scene.control.Button
+import javafx.scene.control.ButtonType
 import javafx.scene.control.CheckBox
 import javafx.scene.control.ChoiceBox
 import javafx.scene.control.Label
@@ -40,12 +42,16 @@ import javafx.scene.paint.Color
 import javafx.scene.text.Font
 import javafx.scene.text.FontWeight
 import javafx.util.Callback
+import javafx.stage.FileChooser
 import javafx.stage.Screen
 import javafx.stage.Stage
 import javafx.stage.StageStyle
+import javafx.stage.Window
 
+import java.io.File
 import java.util.function.Consumer
 import fr.clickauto.engine.SequenceExecutor
+import fr.clickauto.persistence.SequenceProfileStore
 import com.github.kwhat.jnativehook.GlobalScreen
 import com.github.kwhat.jnativehook.NativeHookException
 import com.github.kwhat.jnativehook.mouse.NativeMouseEvent
@@ -75,6 +81,7 @@ final class ClicksPageView {
     private final TextField seqCyclesField = new TextField()
     private final TextField seqDurationField = new TextField()
     private final TextField seqInitialDelayField = new TextField()
+    private final SequenceProfileStore profileStore = new SequenceProfileStore()
 
     private Node rootNode
     private ListView<ClickAction> clickList
@@ -126,22 +133,11 @@ final class ClicksPageView {
         page.setOnKeyPressed({ KeyEvent event ->
             if (executor == null) return
             if (event.getCode() == KeyCode.F8) {
-                executor.start(sequence)
-                startExecButton.setDisable(true)
-                pauseExecButton.setDisable(false)
-                stopExecButton.setDisable(false)
+                requestStartExecution()
             } else if (event.getCode() == KeyCode.F9) {
-                executor.stop()
-                startExecButton.setDisable(false)
-                pauseExecButton.setDisable(true)
-                pauseExecButton.setText('Pause')
-                stopExecButton.setDisable(true)
+                handleStopExecution()
             } else if (event.getCode() == KeyCode.F7) {
-                if (executor.getState() == SequenceExecutor.State.RUNNING) {
-                    executor.pause(); pauseExecButton.setText('Reprendre')
-                } else if (executor.getState() == SequenceExecutor.State.PAUSED) {
-                    executor.resume(); pauseExecButton.setText('Pause')
-                }
+                handlePauseExecution()
             }
         } as EventHandler<KeyEvent>)
 
@@ -157,6 +153,8 @@ final class ClicksPageView {
         Button toggleButton = new Button('Activer / désactiver')
         Button upButton = new Button('Monter')
         Button downButton = new Button('Descendre')
+        Button saveButton = new Button('Sauvegarder')
+        Button loadButton = new Button('Charger')
 
         addButton.setOnAction({ ActionEvent ignored -> addClickFromEditor() } as EventHandler<ActionEvent>)
         duplicateButton.setOnAction({ ActionEvent ignored -> duplicateSelectedClick() } as EventHandler<ActionEvent>)
@@ -164,6 +162,8 @@ final class ClicksPageView {
         toggleButton.setOnAction({ ActionEvent ignored -> toggleSelectedClick() } as EventHandler<ActionEvent>)
         upButton.setOnAction({ ActionEvent ignored -> moveSelectedClick(-1) } as EventHandler<ActionEvent>)
         downButton.setOnAction({ ActionEvent ignored -> moveSelectedClick(1) } as EventHandler<ActionEvent>)
+        saveButton.setOnAction({ ActionEvent ignored -> saveCurrentSequenceProfile() } as EventHandler<ActionEvent>)
+        loadButton.setOnAction({ ActionEvent ignored -> loadSequenceProfile() } as EventHandler<ActionEvent>)
 
         Button overlayToggle = new Button('Overlay')
         overlayToggle.setOnAction({ ActionEvent ignored ->
@@ -171,7 +171,12 @@ final class ClicksPageView {
                 if (executor == null) return
                 // lazy create overlay
                 if (overlayWindow == null) {
-                    overlayWindow = new OverlayWindow(executor, sequence)
+                    overlayWindow = new OverlayWindow(
+                            executor,
+                            ({ -> requestStartExecution() } as Runnable),
+                            ({ -> handlePauseExecution() } as Runnable),
+                            ({ -> handleStopExecution() } as Runnable)
+                    )
                 }
                 overlayWindow.toggle()
             } catch (Exception ex) {
@@ -179,7 +184,7 @@ final class ClicksPageView {
             }
         } as EventHandler<ActionEvent>)
 
-        return new ToolBar(addButton, duplicateButton, deleteButton, toggleButton, upButton, downButton, new Separator(), overlayToggle)
+        return new ToolBar(addButton, duplicateButton, deleteButton, toggleButton, upButton, downButton, new Separator(), saveButton, loadButton, new Separator(), overlayToggle)
     }
 
     private Node createCenterPane() {
@@ -264,13 +269,7 @@ final class ClicksPageView {
         HBox execButtons = new HBox(8, startExecButton, pauseExecButton, stopExecButton)
 
         startExecButton.setOnAction({ ActionEvent ignored ->
-            applySequenceSettingsToModel()
-            if (executor != null) {
-                executor.start(sequence)
-                startExecButton.setDisable(true)
-                pauseExecButton.setDisable(false)
-                stopExecButton.setDisable(false)
-            }
+            requestStartExecution()
         } as EventHandler<ActionEvent>)
 
         pauseExecButton.setOnAction({ ActionEvent ignored ->
@@ -286,13 +285,7 @@ final class ClicksPageView {
         } as EventHandler<ActionEvent>)
 
         stopExecButton.setOnAction({ ActionEvent ignored ->
-            if (executor != null) {
-                executor.stop()
-                startExecButton.setDisable(false)
-                pauseExecButton.setDisable(true)
-                pauseExecButton.setText('Pause')
-                stopExecButton.setDisable(true)
-            }
+            handleStopExecution()
         } as EventHandler<ActionEvent>)
 
         selectedActionLabel.setWrapText(true)
@@ -340,6 +333,160 @@ final class ClicksPageView {
                 sequence.setCycles(0)
             }
         } catch (Exception ignored) {}
+    }
+
+    private void requestStartExecution() {
+        applySequenceSettingsToModel()
+        if (sequence.getCycles() == 0 && !confirmInfiniteExecution()) {
+            return
+        }
+        if (executor == null) {
+            statusUpdater.accept('Moteur indisponible')
+            return
+        }
+
+        executor.start(sequence)
+        startExecButton.setDisable(true)
+        pauseExecButton.setDisable(false)
+        stopExecButton.setDisable(false)
+    }
+
+    private void handlePauseExecution() {
+        if (executor == null) {
+            return
+        }
+        if (executor.getState() == SequenceExecutor.State.RUNNING) {
+            executor.pause()
+            pauseExecButton.setText('Reprendre')
+        } else if (executor.getState() == SequenceExecutor.State.PAUSED) {
+            executor.resume()
+            pauseExecButton.setText('Pause')
+        }
+    }
+
+    private void handleStopExecution() {
+        if (executor == null) {
+            return
+        }
+        executor.stop()
+        startExecButton.setDisable(false)
+        pauseExecButton.setDisable(true)
+        pauseExecButton.setText('Pause')
+        stopExecButton.setDisable(true)
+    }
+
+    private boolean confirmInfiniteExecution() {
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION)
+        alert.setTitle('Confirmation de lancement')
+        alert.setHeaderText('Mode infini détecté')
+        alert.setContentText('Cette séquence est configurée en boucle infinie.\n' +
+                'Elle s\'arrêtera uniquement avec la touche F9.\n\nContinuer ?')
+        def result = alert.showAndWait()
+        return result.isPresent() && result.get() == ButtonType.OK
+    }
+
+    private void saveCurrentSequenceProfile() {
+        FileChooser chooser = new FileChooser()
+        chooser.setTitle('Sauvegarder le profil de clics')
+        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter('Profil JSON', '*.json'))
+        chooser.setInitialFileName(defaultProfileFileName())
+
+        File file = chooser.showSaveDialog(getDialogOwner())
+        if (file == null) {
+            return
+        }
+        if (!file.name.toLowerCase().endsWith('.json')) {
+            file = new File(file.parentFile, file.name + '.json')
+        }
+        try {
+            profileStore.save(file, sequence)
+            statusUpdater.accept('Profil sauvegarde: ' + file.name)
+        } catch (Exception ex) {
+            statusUpdater.accept('Erreur de sauvegarde du profil: ' + ex.getMessage())
+        }
+    }
+
+    private void loadSequenceProfile() {
+        FileChooser chooser = new FileChooser()
+        chooser.setTitle('Charger un profil de clics')
+        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter('Profil JSON', '*.json'))
+
+        File file = chooser.showOpenDialog(getDialogOwner())
+        if (file == null) {
+            return
+        }
+
+        if (executor != null && (executor.getState() == SequenceExecutor.State.RUNNING || executor.getState() == SequenceExecutor.State.PAUSED)) {
+            handleStopExecution()
+        }
+
+        try {
+            Sequence loaded = profileStore.load(file)
+            for (Object action : loaded.getActions()) {
+                if (!(action instanceof ClickAction)) {
+                    statusUpdater.accept('Profil refuse: cet onglet charge uniquement les profils de clics')
+                    return
+                }
+            }
+
+            sequence.setName(loaded.getName())
+            sequence.setCycles(loaded.getCycles())
+            sequence.setTotalDurationMs(loaded.getTotalDurationMs())
+            sequence.setInitialDelayMs(loaded.getInitialDelayMs())
+            sequence.clearActions()
+            clicks.clear()
+
+            for (Object action : loaded.getActions()) {
+                ClickAction click = (ClickAction) action
+                sequence.addAction(click)
+                clicks.add(click)
+            }
+
+            sequenceNameValue.setText(sequence.getName())
+            syncExecutionControlsFromSequence(sequence)
+            refreshCounters()
+            if (clickList != null) {
+                clickList.refresh()
+                if (!clicks.isEmpty()) {
+                    clickList.getSelectionModel().select(0)
+                }
+            }
+            statusUpdater.accept('Profil charge: ' + file.name)
+        } catch (Exception ex) {
+            statusUpdater.accept('Erreur de chargement du profil: ' + ex.getMessage())
+        }
+    }
+
+    private String defaultProfileFileName() {
+        return sequence.getName().replaceAll('[^a-zA-Z0-9._-]+', '_') + '.json'
+    }
+
+    private void syncExecutionControlsFromSequence(Sequence loadedSequence) {
+        if (loadedSequence.getTotalDurationMs() > 0) {
+            sequenceModeChoiceBox.getSelectionModel().select('Par duree (ms)')
+            seqDurationField.setText(Long.toString(loadedSequence.getTotalDurationMs()))
+            seqCyclesField.clear()
+        } else if (loadedSequence.getCycles() == 0) {
+            sequenceModeChoiceBox.getSelectionModel().select('Boucle (infini)')
+            seqCyclesField.clear()
+            seqDurationField.clear()
+        } else if (loadedSequence.getCycles() == 1) {
+            sequenceModeChoiceBox.getSelectionModel().select('One shot')
+            seqCyclesField.clear()
+            seqDurationField.clear()
+        } else {
+            sequenceModeChoiceBox.getSelectionModel().select('Par cycles')
+            seqCyclesField.setText(Integer.toString(loadedSequence.getCycles()))
+            seqDurationField.clear()
+        }
+        seqInitialDelayField.setText(Long.toString(loadedSequence.getInitialDelayMs()))
+    }
+
+    private Window getDialogOwner() {
+        if (rootNode != null && rootNode.getScene() != null) {
+            return rootNode.getScene().getWindow()
+        }
+        return null
     }
 
     private ListView<ClickAction> createClickList() {

@@ -109,6 +109,8 @@ L'application doit rester générique et ne pas dépendre d'un jeu ou d'un usage
 - Répétition continue.
 - Déclenchement manuel.
 - Raccourci clavier global.
+- Touche de lancement globale configurable.
+- Touche d'arrêt globale prioritaire (arrêt d'urgence).
 
 ### Comportements attendus
 - L'arrêt doit être immédiat.
@@ -259,13 +261,23 @@ L'application sera considérée comme réussie si elle permet de :
 
 - ✅ Initialisation Gradle opérationnelle.
 - ✅ Migration complète en 100% Groovy (`@CompileStatic` activé).
-- ✅ UI principale en JavaFX (base exécutable avec 4 zones).
+- ✅ UI principale en JavaFX avec navigation header.
+- ✅ Pages UI séparées en fichiers distincts (`clicks`, `touches clavier`, `record and replay`, `test`).
+- ✅ Page de gestion de clics dédiée avec ajout, édition, duplication, suppression et activation.
+- ✅ Réordonnancement clavier dans la page clics (`Shift + Haut/Bas`).
+- ✅ Capture guidée des coordonnées du prochain clic gauche via bouton dédié.
+- ✅ Gestion des clics finalisée côté UI: toolbar d'édition, panneau de propriétés, contrôles d'exécution, modes de séquence et raccourcis locaux.
+- ✅ Sauvegarde / chargement JSON des profils de clics.
 - ✅ Modèles métier créés et testés à la compilation :
   - `Action` : interface générique.
   - `ClickAction` : clic souris (type, position, délai, activable).
   - `KeyAction` : touche clavier (code, durée, délai, activable).
   - `ClickType` : énumération LEFT/RIGHT/MIDDLE.
   - `Sequence` : conteneur d'actions (cycles, durée totale, délai initial, gestion d'ordre).
+- ✅ `SequenceExecutor` branché à l'UI avec gestion de start / pause / stop / resume sur thread dédié.
+- ✅ Capture de coordonnées compatible avec autres applications: hook global JNativeHook quand disponible, fallback overlay sinon.
+- ✅ Confirmation de sécurité avant lancement en boucle infinie, avec rappel de la touche `F9`.
+- ✅ Overlay Windows préparé pour le mode click-through afin de ne pas bloquer les autres applications.
 - ✅ Build avec Gradle en 100% succès.
 
 ### Décisions techniques actées
@@ -275,13 +287,14 @@ L'application sera considérée comme réussie si elle permet de :
 - Cible JVM maintenue en Java 21 (toolchain Gradle) pour stabilité.
 - Utilisation de `@CompileStatic` sur domaine + entrypoint.
 - JavaFX choisi pour la page principale et la base d'interface.
+- Les pages UI sont découplées pour permettre une evolution independante.
+- L'onglet `clicks` est maintenant centré sur la gestion des `ClickAction`.
+- Le lancement réel de routine reste à brancher sur un moteur dédié (`SequenceExecutor`).
 
 ### Prochain lot technique (sprint 2)
 
-1. Créer `SequenceExecutor` pour exécuter les séquences.
-2. Implémenter les hooks de clic/touche avec `java.awt.Robot`.
-3. Étendre l'UI JavaFX (éditeur de séquence, liste d'actions, propriétés).
-4. Ajouter tests Spock Groovy sur la logique métier.
-5. Implémenter la persistance JSON (save/load profils).
+1. Ajouter les tests Spock Groovy sur `Sequence`, `ClickAction`, `KeyAction` et `SequenceExecutor`.
+2. Compléter les hotkeys globales si le besoin hors focus est confirmé.
+3. Ajouter une gestion multi-profils plus avancée si nécessaire.
 
 

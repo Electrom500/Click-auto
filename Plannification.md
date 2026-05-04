@@ -278,6 +278,9 @@ L'application sera considérée comme réussie si elle permet de :
 - ✅ Capture de coordonnées compatible avec autres applications: hook global JNativeHook quand disponible, fallback overlay sinon.
 - ✅ Confirmation de sécurité avant lancement en boucle infinie, avec rappel de la touche `F9`.
 - ✅ Overlay Windows préparé pour le mode click-through afin de ne pas bloquer les autres applications.
+- ✅ Hotkeys globales activables (F8/F7/F9).
+- ✅ Drag & drop dans la liste de clics.
+- ✅ Prévisualisation visuelle des marqueurs de clics.
 - ✅ Build avec Gradle en 100% succès.
 
 ### Décisions techniques actées
@@ -293,8 +296,8 @@ L'application sera considérée comme réussie si elle permet de :
 
 ### Prochain lot technique (sprint 2)
 
-1. Ajouter les tests Spock Groovy sur `Sequence`, `ClickAction`, `KeyAction` et `SequenceExecutor`.
-2. Compléter les hotkeys globales si le besoin hors focus est confirmé.
-3. Ajouter une gestion multi-profils plus avancée si nécessaire.
+1. Ajouter les tests Spock Groovy sur `Sequence`, `ClickAction`, `KeyAction`, `SequenceExecutor` et la persistance JSON.
+2. Ajouter une gestion multi-profils plus avancée si nécessaire.
+3. Étendre la prévisualisation (multi-écran, durée configurable) si besoin.
 
 

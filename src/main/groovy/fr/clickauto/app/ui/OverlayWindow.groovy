@@ -16,6 +16,8 @@ import javafx.scene.layout.Background
 import javafx.scene.layout.BackgroundFill
 import javafx.scene.layout.CornerRadii
 import javafx.scene.layout.HBox
+import javafx.scene.layout.Priority
+import javafx.scene.layout.Region
 import javafx.scene.paint.Color
 import javafx.stage.Stage
 import javafx.stage.StageStyle
@@ -32,7 +34,7 @@ final class OverlayWindow {
     private final Runnable pauseAction
     private final Runnable stopAction
     private final Label statusLabel = new Label('Idle')
-    private boolean clickThroughEnabled = true
+    private boolean clickThroughEnabled = false
 
     private double dragOffsetX = 0
     private double dragOffsetY = 0
@@ -48,6 +50,7 @@ final class OverlayWindow {
         Button start = new Button('▶')
         Button pause = new Button('⏸')
         Button stop = new Button('■')
+        Button close = new Button('✕')
         start.setOnAction({ ActionEvent e ->
             if (startAction != null) startAction.run()
             updateStatus()
@@ -61,8 +64,14 @@ final class OverlayWindow {
             updateStatus()
         } as EventHandler<ActionEvent>)
 
+        close.setOnAction({ ActionEvent e ->
+            hide()
+        } as EventHandler<ActionEvent>)
+
         statusLabel.setStyle('-fx-text-fill: white; -fx-font-size: 11;')
-        HBox root = new HBox(8, start, pause, stop, statusLabel)
+        Region spacer = new Region()
+        HBox.setHgrow(spacer, Priority.ALWAYS)
+        HBox root = new HBox(8, start, pause, stop, statusLabel, spacer, close)
         root.setPrefSize(240, 48)
         stage.setWidth(240)
         stage.setHeight(48)

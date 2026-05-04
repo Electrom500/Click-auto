@@ -1,6 +1,7 @@
 package fr.clickauto.app.ui.pages
 
 import fr.clickauto.app.ui.OverlayWindow
+import fr.clickauto.app.ui.ClickMarkersOverlay
 import fr.clickauto.model.ClickAction
 import fr.clickauto.model.ClickType
 import fr.clickauto.model.Sequence
@@ -27,8 +28,10 @@ import javafx.scene.control.ListView
 import javafx.scene.control.Separator
 import javafx.scene.control.TextField
 import javafx.scene.control.ToolBar
+import javafx.scene.input.ClipboardContent
 import javafx.scene.input.KeyCode
 import javafx.scene.input.KeyEvent
+import javafx.scene.input.TransferMode
 import javafx.scene.input.MouseButton
 import javafx.scene.layout.BorderPane
 import javafx.scene.layout.ColumnConstraints
@@ -49,6 +52,7 @@ import javafx.stage.StageStyle
 import javafx.stage.Window
 
 import java.io.File
+import java.io.FileFilter
 import java.util.function.Consumer
 import fr.clickauto.engine.SequenceExecutor
 import fr.clickauto.persistence.SequenceProfileStore
@@ -56,6 +60,8 @@ import com.github.kwhat.jnativehook.GlobalScreen
 import com.github.kwhat.jnativehook.NativeHookException
 import com.github.kwhat.jnativehook.mouse.NativeMouseEvent
 import com.github.kwhat.jnativehook.mouse.NativeMouseListener
+import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent
+import com.github.kwhat.jnativehook.keyboard.NativeKeyListener
 import java.util.logging.Level
 import java.util.logging.Logger
 
@@ -82,12 +88,21 @@ final class ClicksPageView {
     private final TextField seqDurationField = new TextField()
     private final TextField seqInitialDelayField = new TextField()
     private final SequenceProfileStore profileStore = new SequenceProfileStore()
+    private final CheckBox confirmBeforeStartCheckBox = new CheckBox('Confirmer avant lancement')
+    private final CheckBox globalHotkeysCheckBox = new CheckBox('Hotkeys globales (F8/F7/F9)')
+
+    private final ChoiceBox<String> profileChoiceBox = new ChoiceBox<>(FXCollections.observableArrayList())
+    private final TextField profileNameField = new TextField()
 
     private Node rootNode
     private ListView<ClickAction> clickList
     private boolean capturePending = false
     private Stage captureOverlay
     private OverlayWindow overlayWindow
+    private final ClickMarkersOverlay markersOverlay = new ClickMarkersOverlay()
+
+    private boolean globalHookRegistered = false
+    private NativeKeyListener globalHotkeyListener
 
     // Execution controller and buttons
     private SequenceExecutor executor
@@ -101,6 +116,7 @@ final class ClicksPageView {
             clicks.add((ClickAction) action)
         }
         typeChoiceBox.getSelectionModel().select(ClickType.LEFT)
+        refreshProfileList()
     }
 
     Node getView() {
@@ -259,14 +275,33 @@ final class ClicksPageView {
         addRow(execGrid, 2, 'Duree totale (ms)', seqDurationField)
         addRow(execGrid, 3, 'Delai initial (ms)', seqInitialDelayField)
 
+        confirmBeforeStartCheckBox.setSelected(true)
+        globalHotkeysCheckBox.setSelected(false)
+
+        GridPane safetyGrid = new GridPane()
+        safetyGrid.setHgap(10)
+        safetyGrid.setVgap(6)
+        safetyGrid.getColumnConstraints().addAll(new ColumnConstraints(120), new ColumnConstraints(220))
+        addRow(safetyGrid, 0, 'Sécurité', confirmBeforeStartCheckBox)
+        addRow(safetyGrid, 1, 'Hotkeys', globalHotkeysCheckBox)
+
+        globalHotkeysCheckBox.setOnAction({ ActionEvent ignored ->
+            if (globalHotkeysCheckBox.isSelected()) {
+                enableGlobalHotkeys()
+            } else {
+                disableGlobalHotkeys()
+            }
+        } as EventHandler<ActionEvent>)
+
         // Execution buttons below sequence settings
         startExecButton = new Button('Démarrer')
         pauseExecButton = new Button('Pause')
         stopExecButton = new Button('Arrêter')
+        Button previewButton = new Button('Prévisualiser')
         pauseExecButton.setDisable(true)
         stopExecButton.setDisable(true)
 
-        HBox execButtons = new HBox(8, startExecButton, pauseExecButton, stopExecButton)
+        HBox execButtons = new HBox(8, startExecButton, pauseExecButton, stopExecButton, previewButton)
 
         startExecButton.setOnAction({ ActionEvent ignored ->
             requestStartExecution()
@@ -288,12 +323,34 @@ final class ClicksPageView {
             handleStopExecution()
         } as EventHandler<ActionEvent>)
 
+        previewButton.setOnAction({ ActionEvent ignored ->
+            showClickMarkersPreview()
+        } as EventHandler<ActionEvent>)
+
         selectedActionLabel.setWrapText(true)
 
         Label hotkeysHint = new Label('Raccourcis (si la page a le focus): F8 = Démarrer · F7 = Pause/Reprendre · F9 = Arrêter')
         hotkeysHint.setStyle('-fx-text-fill: #6b7280; -fx-font-size: 11;')
 
-        VBox editor = new VBox(10, title, grid, applyButton, new Separator(), execGrid, execButtons, hotkeysHint, new Separator(), selectedActionLabel)
+        GridPane profileGrid = new GridPane()
+        profileGrid.setHgap(10)
+        profileGrid.setVgap(6)
+        profileGrid.getColumnConstraints().addAll(new ColumnConstraints(120), new ColumnConstraints(220))
+        profileNameField.setPromptText('Nom du profil')
+        profileNameField.setText(sequence.getName())
+        addRow(profileGrid, 0, 'Profil', profileChoiceBox)
+        addRow(profileGrid, 1, 'Nom', profileNameField)
+
+        Button saveProfileButton = new Button('Enregistrer profil')
+        Button loadProfileButton = new Button('Charger profil')
+        Button deleteProfileButton = new Button('Supprimer profil')
+        HBox profileButtons = new HBox(8, saveProfileButton, loadProfileButton, deleteProfileButton)
+
+        saveProfileButton.setOnAction({ ActionEvent ignored -> saveProfileToLibrary() } as EventHandler<ActionEvent>)
+        loadProfileButton.setOnAction({ ActionEvent ignored -> loadProfileFromLibrary() } as EventHandler<ActionEvent>)
+        deleteProfileButton.setOnAction({ ActionEvent ignored -> deleteProfileFromLibrary() } as EventHandler<ActionEvent>)
+
+        VBox editor = new VBox(10, title, grid, applyButton, new Separator(), execGrid, safetyGrid, execButtons, hotkeysHint, new Separator(), profileGrid, profileButtons, new Separator(), selectedActionLabel)
         editor.setPrefWidth(380)
         return editor
     }
@@ -337,8 +394,14 @@ final class ClicksPageView {
 
     private void requestStartExecution() {
         applySequenceSettingsToModel()
-        if (sequence.getCycles() == 0 && !confirmInfiniteExecution()) {
-            return
+        if (confirmBeforeStartCheckBox.isSelected()) {
+            if (sequence.getCycles() == 0) {
+                if (!confirmInfiniteExecution()) {
+                    return
+                }
+            } else if (!confirmRegularExecution()) {
+                return
+            }
         }
         if (executor == null) {
             statusUpdater.accept('Moteur indisponible')
@@ -385,6 +448,149 @@ final class ClicksPageView {
         return result.isPresent() && result.get() == ButtonType.OK
     }
 
+    private boolean confirmRegularExecution() {
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION)
+        alert.setTitle('Confirmation de lancement')
+        alert.setHeaderText('Lancer la séquence ?')
+        alert.setContentText('Confirmer le démarrage de la séquence sélectionnée.')
+        def result = alert.showAndWait()
+        return result.isPresent() && result.get() == ButtonType.OK
+    }
+
+    private void showClickMarkersPreview() {
+        List<ClickAction> enabledClicks = clicks.findAll { ClickAction click -> click.isEnabled() }
+        if (enabledClicks.isEmpty()) {
+            statusUpdater.accept('Aucun clic actif à prévisualiser')
+            return
+        }
+        markersOverlay.show(enabledClicks, 2000L)
+        statusUpdater.accept('Prévisualisation des clics (2s)')
+    }
+
+    private void enableGlobalHotkeys() {
+        if (globalHotkeyListener == null) {
+            globalHotkeyListener = new NativeKeyListener() {
+                @Override
+                void nativeKeyPressed(NativeKeyEvent event) {
+                    if (event.getKeyCode() == NativeKeyEvent.VC_F8) {
+                        Platform.runLater { requestStartExecution() }
+                    } else if (event.getKeyCode() == NativeKeyEvent.VC_F9) {
+                        Platform.runLater { handleStopExecution() }
+                    } else if (event.getKeyCode() == NativeKeyEvent.VC_F7) {
+                        Platform.runLater { handlePauseExecution() }
+                    }
+                }
+                @Override void nativeKeyReleased(NativeKeyEvent event) {}
+                @Override void nativeKeyTyped(NativeKeyEvent event) {}
+            }
+        }
+
+        if (!globalHookRegistered) {
+            try {
+                GlobalScreen.registerNativeHook()
+                globalHookRegistered = true
+            } catch (NativeHookException ex) {
+                globalHotkeysCheckBox.setSelected(false)
+                statusUpdater.accept('Impossible d\'activer les hotkeys globales: ' + ex.getMessage())
+                return
+            }
+        }
+        try { GlobalScreen.removeNativeKeyListener(globalHotkeyListener) } catch (Exception ignored) {}
+        GlobalScreen.addNativeKeyListener(globalHotkeyListener)
+        statusUpdater.accept('Hotkeys globales actives')
+    }
+
+    private void disableGlobalHotkeys() {
+        if (globalHotkeyListener != null) {
+            try { GlobalScreen.removeNativeKeyListener(globalHotkeyListener) } catch (Exception ignored) {}
+        }
+        if (globalHookRegistered && !capturePending) {
+            try {
+                GlobalScreen.unregisterNativeHook()
+                globalHookRegistered = false
+            } catch (NativeHookException ignored) {}
+        }
+        statusUpdater.accept('Hotkeys globales desactivées')
+    }
+
+    private File getProfilesDirectory() {
+        File dir = new File(System.getProperty('user.home'), 'Click-auto/profiles')
+        if (!dir.exists()) {
+            dir.mkdirs()
+        }
+        return dir
+    }
+
+    private void refreshProfileList() {
+        File dir = getProfilesDirectory()
+        List<String> names = []
+        File[] files = dir.listFiles({ File f -> f.isFile() && f.name.toLowerCase().endsWith('.json') } as FileFilter)
+        if (files != null) {
+            for (File file : files) {
+                names.add(file.name)
+            }
+        }
+        names.sort()
+        profileChoiceBox.setItems(FXCollections.observableArrayList(names))
+        if (!names.isEmpty()) {
+            profileChoiceBox.getSelectionModel().select(0)
+        }
+    }
+
+    private void saveProfileToLibrary() {
+        String name = profileNameField.getText() == null ? '' : profileNameField.getText().trim()
+        if (name.isEmpty()) {
+            name = sequence.getName()
+        }
+        if (!name.toLowerCase().endsWith('.json')) {
+            name = name + '.json'
+        }
+        File file = new File(getProfilesDirectory(), name)
+        try {
+            profileStore.save(file, sequence)
+            refreshProfileList()
+            profileChoiceBox.getSelectionModel().select(name)
+            statusUpdater.accept('Profil enregistré: ' + name)
+        } catch (Exception ex) {
+            statusUpdater.accept('Erreur de sauvegarde du profil: ' + ex.getMessage())
+        }
+    }
+
+    private void loadProfileFromLibrary() {
+        String selected = profileChoiceBox.getSelectionModel().getSelectedItem()
+        if (selected == null || selected.trim().isEmpty()) {
+            statusUpdater.accept('Aucun profil sélectionné')
+            return
+        }
+        File file = new File(getProfilesDirectory(), selected)
+        if (!file.exists()) {
+            statusUpdater.accept('Profil introuvable: ' + selected)
+            refreshProfileList()
+            return
+        }
+        loadProfileFromFile(file)
+    }
+
+    private void deleteProfileFromLibrary() {
+        String selected = profileChoiceBox.getSelectionModel().getSelectedItem()
+        if (selected == null || selected.trim().isEmpty()) {
+            statusUpdater.accept('Aucun profil sélectionné')
+            return
+        }
+        File file = new File(getProfilesDirectory(), selected)
+        if (!file.exists()) {
+            statusUpdater.accept('Profil introuvable: ' + selected)
+            refreshProfileList()
+            return
+        }
+        if (file.delete()) {
+            refreshProfileList()
+            statusUpdater.accept('Profil supprimé: ' + selected)
+        } else {
+            statusUpdater.accept('Impossible de supprimer le profil')
+        }
+    }
+
     private void saveCurrentSequenceProfile() {
         FileChooser chooser = new FileChooser()
         chooser.setTitle('Sauvegarder le profil de clics')
@@ -415,46 +621,7 @@ final class ClicksPageView {
         if (file == null) {
             return
         }
-
-        if (executor != null && (executor.getState() == SequenceExecutor.State.RUNNING || executor.getState() == SequenceExecutor.State.PAUSED)) {
-            handleStopExecution()
-        }
-
-        try {
-            Sequence loaded = profileStore.load(file)
-            for (Object action : loaded.getActions()) {
-                if (!(action instanceof ClickAction)) {
-                    statusUpdater.accept('Profil refuse: cet onglet charge uniquement les profils de clics')
-                    return
-                }
-            }
-
-            sequence.setName(loaded.getName())
-            sequence.setCycles(loaded.getCycles())
-            sequence.setTotalDurationMs(loaded.getTotalDurationMs())
-            sequence.setInitialDelayMs(loaded.getInitialDelayMs())
-            sequence.clearActions()
-            clicks.clear()
-
-            for (Object action : loaded.getActions()) {
-                ClickAction click = (ClickAction) action
-                sequence.addAction(click)
-                clicks.add(click)
-            }
-
-            sequenceNameValue.setText(sequence.getName())
-            syncExecutionControlsFromSequence(sequence)
-            refreshCounters()
-            if (clickList != null) {
-                clickList.refresh()
-                if (!clicks.isEmpty()) {
-                    clickList.getSelectionModel().select(0)
-                }
-            }
-            statusUpdater.accept('Profil charge: ' + file.name)
-        } catch (Exception ex) {
-            statusUpdater.accept('Erreur de chargement du profil: ' + ex.getMessage())
-        }
+        loadProfileFromFile(file)
     }
 
     private String defaultProfileFileName() {
@@ -487,6 +654,51 @@ final class ClicksPageView {
             return rootNode.getScene().getWindow()
         }
         return null
+    }
+
+    private void loadProfileFromFile(File file) {
+        if (executor != null && (executor.getState() == SequenceExecutor.State.RUNNING || executor.getState() == SequenceExecutor.State.PAUSED)) {
+            handleStopExecution()
+        }
+        try {
+            Sequence loaded = profileStore.load(file)
+            for (Object action : loaded.getActions()) {
+                if (!(action instanceof ClickAction)) {
+                    statusUpdater.accept('Profil refuse: cet onglet charge uniquement les profils de clics')
+                    return
+                }
+            }
+            applyLoadedSequence(loaded)
+            statusUpdater.accept('Profil charge: ' + file.name)
+        } catch (Exception ex) {
+            statusUpdater.accept('Erreur de chargement du profil: ' + ex.getMessage())
+        }
+    }
+
+    private void applyLoadedSequence(Sequence loaded) {
+        sequence.setName(loaded.getName())
+        sequence.setCycles(loaded.getCycles())
+        sequence.setTotalDurationMs(loaded.getTotalDurationMs())
+        sequence.setInitialDelayMs(loaded.getInitialDelayMs())
+        sequence.clearActions()
+        clicks.clear()
+
+        for (Object action : loaded.getActions()) {
+            ClickAction click = (ClickAction) action
+            sequence.addAction(click)
+            clicks.add(click)
+        }
+
+        sequenceNameValue.setText(sequence.getName())
+        profileNameField.setText(sequence.getName())
+        syncExecutionControlsFromSequence(sequence)
+        refreshCounters()
+        if (clickList != null) {
+            clickList.refresh()
+            if (!clicks.isEmpty()) {
+                clickList.getSelectionModel().select(0)
+            }
+        }
     }
 
     private ListView<ClickAction> createClickList() {
@@ -541,7 +753,7 @@ final class ClicksPageView {
 
     private Callback<ListView<ClickAction>, ListCell<ClickAction>> clickCellFactory() {
         return { ListView<ClickAction> ignored ->
-            new ListCell<ClickAction>() {
+            ListCell<ClickAction> cell = new ListCell<ClickAction>() {
                 @Override
                 protected void updateItem(ClickAction item, boolean empty) {
                     super.updateItem(item, empty)
@@ -553,6 +765,41 @@ final class ClicksPageView {
                     }
                 }
             }
+            wireDragAndDrop(cell)
+            return cell
+        }
+    }
+
+    private void wireDragAndDrop(ListCell<ClickAction> cell) {
+        cell.setOnDragDetected { event ->
+            if (cell.isEmpty()) {
+                return
+            }
+            def dragboard = cell.startDragAndDrop(TransferMode.MOVE)
+            ClipboardContent content = new ClipboardContent()
+            content.putString(Integer.toString(cell.getIndex()))
+            dragboard.setContent(content)
+            event.consume()
+        }
+
+        cell.setOnDragOver { event ->
+            if (event.getGestureSource() != cell && !cell.isEmpty()) {
+                event.acceptTransferModes(TransferMode.MOVE)
+            }
+            event.consume()
+        }
+
+        cell.setOnDragDropped { event ->
+            def dragboard = event.getDragboard()
+            if (dragboard.hasString()) {
+                int fromIndex = Integer.parseInt(dragboard.getString())
+                int toIndex = cell.getIndex()
+                moveClickForDrag(fromIndex, toIndex)
+                event.setDropCompleted(true)
+            } else {
+                event.setDropCompleted(false)
+            }
+            event.consume()
         }
     }
 
@@ -651,6 +898,24 @@ final class ClicksPageView {
         statusUpdater.accept(delta < 0 ? 'Clic monte' : 'Clic descendu')
     }
 
+    private void moveClickForDrag(int fromIndex, int toIndex) {
+        if (fromIndex == toIndex) {
+            return
+        }
+        if (fromIndex < 0 || fromIndex >= clicks.size() || toIndex < 0 || toIndex >= clicks.size()) {
+            return
+        }
+
+        ClickAction item = clicks.remove(fromIndex)
+        clicks.add(toIndex, item)
+        sequence.removeAction(fromIndex)
+        sequence.insertAction(toIndex, item)
+        clickList.refresh()
+        clickList.getSelectionModel().select(toIndex)
+        refreshCounters()
+        statusUpdater.accept('Clic réordonné')
+    }
+
     private void applyEditorToSelected() {
         int index = getSelectedIndex()
         if (index < 0 || index >= clicks.size()) {
@@ -728,13 +993,18 @@ final class ClicksPageView {
         capturePending = true
         statusUpdater.accept('Capture active: clique gauche dans n\'importe quelle fenetre pour enregistrer X/Y')
 
+        boolean registeredForCapture = false
         try {
             try {
                 Logger logger = Logger.getLogger(GlobalScreen.class.getPackage().getName())
                 logger.setLevel(Level.OFF)
             } catch (Exception ignored) {}
 
-            GlobalScreen.registerNativeHook()
+            if (!globalHookRegistered) {
+                GlobalScreen.registerNativeHook()
+                globalHookRegistered = true
+                registeredForCapture = true
+            }
 
             NativeMouseListener listener = new NativeMouseListener() {
                 @Override
@@ -749,7 +1019,9 @@ final class ClicksPageView {
                         }
                     } finally {
                         try { GlobalScreen.removeNativeMouseListener(this) } catch (Exception ignored) {}
-                        try { GlobalScreen.unregisterNativeHook() } catch (Exception ignored) {}
+                        if (registeredForCapture && !globalHotkeysCheckBox.isSelected()) {
+                            try { GlobalScreen.unregisterNativeHook(); globalHookRegistered = false } catch (Exception ignored) {}
+                        }
                     }
                 }
 

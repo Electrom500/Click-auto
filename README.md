@@ -11,6 +11,7 @@ Le projet est maintenant structure autour d'une UI JavaFX et d'un moteur d'execu
 - Moteur `SequenceExecutor` pour start / pause / resume / stop.
 - Capture des coordonnées via clic global quand disponible, avec fallback overlay.
 - Hotkeys locales sur la page et l'overlay : F8 démarrer, F7 pause/reprendre, F9 arrêter, F6 basculer le mode click-through de l'overlay.
+- Hotkeys globales optionnelles (checkbox) pour contrôler l'exécution même hors focus.
 - Confirmation obligatoire avant lancement en mode infini, avec rappel explicite de F9 pour arrêter.
 - Sauvegarde / chargement JSON des profils depuis l'onglet `clicks`.
 - Overlay Windows configuré en click-through natif / best-effort pour ne pas bloquer les autres applications.
@@ -82,11 +83,14 @@ Option `Application` (si necessaire):
   - activation / désactivation,
   - déplacement haut / bas,
   - déplacement clavier `Shift + Fleche Haut/Bas`,
+  - réorganisation par drag & drop,
   - édition des coordonnées, du type et du délai.
   - bouton `Enregistrer coordonnees` pour remplir `X/Y` avec le prochain clic gauche capturé.
   - panneau d'execution avec mode de séquence (`One shot`, boucle infinie, cycles, durée), délai initial, et boutons `Démarrer / Pause / Arrêter`.
   - hotkeys locales pour piloter l'execution (`F8`, `F7`, `F9`).
    - boutons `Sauvegarder` / `Charger` pour les profils JSON.
+  - bibliothèque de profils locale (enregistrement, chargement, suppression).
+  - bouton `Prévisualiser` pour afficher les marqueurs visuels des clics.
 - Modèles métier complets:
   - `Action` : interface de base pour toute action.
   - `ClickAction` : représente un clic souris (LEFT, RIGHT, MIDDLE).
@@ -109,6 +113,7 @@ Option `Application` (si necessaire):
 - Les hotkeys globales restent une évolution possible, au-delà des raccourcis locaux actuels.
 - Le mode infini affiche une confirmation avant lancement et rappelle l'arrêt via F9.
 - L'overlay peut passer en mode click-through sous Windows pour ne pas bloquer le travail dans d'autres applications.
+ - La prévisualisation affiche des marqueurs visuels temporaires (overlay transparent).
 
 ## Architecture du projet (actuelle)
 
@@ -140,6 +145,6 @@ src/main/groovy/
 ## Prochaines etapes conseillees
 
 1. Ajouter des tests Groovy / Spock sur `Sequence`, `SequenceExecutor` et la persistance JSON.
-2. Ajouter la configuration des hotkeys globales si besoin.
+2. Ajouter des tests Spock pour la prévisualisation et le drag & drop.
 3. Étendre la gestion multi-profils si l'export/import doit devenir plus avancé.
 

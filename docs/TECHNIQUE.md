@@ -144,6 +144,22 @@ Ce document complete `Plannification.md` avec une vue technique plus detaillee:
 - Pourquoi: rester Windows-first tout en gardant une solution de secours si l'accès au handle natif échoue.
 - Impact: l'overlay peut fonctionner en mode pass-through et laisser la souris au système sous-jacent.
 
+## Decision D-016 - Hotkeys globales et drag & drop
+
+- Date: 2026-05-04
+- Contexte: besoin de lancer/stopper la séquence hors focus et réordonner rapidement les clics.
+- Choix: activer des hotkeys globales (F8/F7/F9) via `com.github.kwhat.jnativehook` et ajouter le drag & drop dans la liste des clics.
+- Pourquoi: améliorer l'efficacité d'exécution et l'ergonomie de la page `clicks`.
+- Impact: le contrôle global devient optionnel et la liste de clics est réordonnable à la souris.
+
+## Decision D-017 - Prévisualisation des marqueurs visuels
+
+- Date: 2026-05-04
+- Contexte: besoin de visualiser rapidement les positions de clics sur l'écran.
+- Choix: overlay transparent qui affiche les marqueurs pour quelques secondes, avec click-through best-effort.
+- Pourquoi: éviter les erreurs de coordonnées sans exécuter la séquence.
+- Impact: prévisualisation rapide via bouton dédié.
+
 ## Decision D-013 - Capture de coordonnées globale avec fallback overlay
 
 - Date: 2026-04-30
@@ -203,6 +219,9 @@ src/main/groovy/
 - Le mode infini déclenche une confirmation de sécurité avant démarrage.
 - Le fichier de profil JSON est géré directement depuis l'onglet `clicks`.
 - L'overlay peut passer en click-through pour ne pas bloquer les clics dans les autres applications.
+- Les hotkeys globales peuvent être activées depuis l'UI.
+- La liste des clics accepte le drag & drop.
+- Un overlay de prévisualisation affiche les marqueurs visuels des clics.
 
 ## 5. Regles d'evolution technique
 

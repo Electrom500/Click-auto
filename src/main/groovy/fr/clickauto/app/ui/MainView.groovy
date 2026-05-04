@@ -37,8 +37,8 @@ final class MainView {
     } as Consumer<String>
 
     private final ClicksPageView clicksPage = new ClicksPageView(statusUpdater)
-    private final KeysPageView keysPage = new KeysPageView()
-    private final RecordReplayPageView recordReplayPage = new RecordReplayPageView()
+    private final KeysPageView keysPage = new KeysPageView(statusUpdater)
+    private final RecordReplayPageView recordReplayPage = new RecordReplayPageView(statusUpdater)
     private final TestPageView testPage = new TestPageView(statusUpdater)
 
     Scene createScene() {
